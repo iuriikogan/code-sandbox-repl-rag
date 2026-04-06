@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	OrchestratorModelName = "gemini-2.5-pro"
-	WorkerModelName       = "gemini-2.5-flash"
-	EmbeddingModelName    = "text-embedding-004"
+	OrchestratorModelName   = "gemini-3.1-flash"
+	WorkerModelName         = "gemini-3.1-flash"
+	FinalSynthesisModelName = "gemini-3.1-pro"
+	EmbeddingModelName      = "text-embedding-004"
 )
 
 // Client wraps the standard GenAI client.
