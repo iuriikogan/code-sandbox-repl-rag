@@ -3,27 +3,28 @@
 ## Project Overview
 This project is a Go-based agentic Retrieval-Augmented Generation (RAG) simulation. It demonstrates how to build an Orchestrator agent using Google's Gemini models (`gemini-3-flash-preview`) that can autonomously execute generated Python code to process massive unstructured context data.
 
-The application establishes an inter-process communication (IPC) channel between Go and a spawned Python process using standard input/output streams and JSON. The Python process performs local chunking and semantic search (Cosine Similarity) by requesting vector embeddings from the Go host, which proxies requests to the `text-embedding-004` model. Furthermore, the Python script can spin up sub-agents (`gemini-3.1-flash-lite-preview`) via the Go host to perform targeted tasks on chunks of data.
+The application leverages the **Vertex AI Agent Engine Code Execution Sandbox** (`cloud.google.com/go/aiplatform/apiv1beta1`) for secure, isolated Python execution. The Python script runs in the cloud and uses the `vertexai` Python SDK to perform local chunking, generate embeddings (`text-embedding-004`), and calculate Cosine Similarity. Furthermore, the Python script can spin up sub-agents (`gemini-3.1-flash-lite-preview`) within the sandbox to perform targeted tasks on chunks of data.
+
+Alternatively, a `LocalRunner` is provided that executes Python locally via `os/exec` and communicates with the Go host over an IPC channel via JSON over standard input/output.
 
 ### Key Technologies
 - **Language**: Go (`go 1.25.0`)
-- **SDK**: Google Cloud Vertex AI SDK (`cloud.google.com/go/vertexai`)
+- **SDK**: Google GenAI SDK (`google.golang.org/genai`) & Vertex AI API (`cloud.google.com/go/aiplatform`)
 - **Models Used**:
   - `gemini-3-flash-preview` (Orchestrator)
   - `gemini-3.1-flash-lite-preview` (Sub-agent worker)
   - `gemini-3.1-pro-preview` (Final Synthesis)
   - `text-embedding-004` (Semantic search / embeddings)
-- **External Execution**: Python 3 (via `os/exec` tool calling)
+- **External Execution**: Vertex AI Agent Engine Code Execution Sandbox (Primary) / Local Python 3 (Fallback)
 
 ## Architecture Details
 1. **Orchestrator Setup**: The Go app spins up an orchestrator with `gemini-3-flash-preview`, passing it an `execute_python_script` tool.
-2. **Context Passing**: An unstructured dummy dataset is written to a temporary file. The path is provided to the generated Python script via the `CONTEXT_FILE` environment variable.
-3. **IPC Loop**: When the Python script runs, it interacts with the Go host by printing JSON messages (e.g., `{"type": "embed", "chunk": "..."}`) to `stdout`. The Go app decodes this, executes the respective GenAI API calls (embeddings or flash sub-agents), and writes the results back to the Python process via `stdin`.
-4. **Synthesis**: Once Python computes the top RAG chunks or sub-agent outputs, it returns the final context to Go via a `{"type": "done"}` IPC message, allowing the Orchestrator to generate the final synthesized output.
+2. **Context Passing**: An unstructured dummy dataset is created. The content is passed into the Vertex AI Sandbox via the API.
+3. **Execution**: When the generated Python script runs in the sandbox, it interacts directly with Vertex AI using the injected `PROJECT_ID` and `LOCATION`. It chunks the data, gets embeddings, and performs similarity search locally within the sandbox.
+4. **Synthesis**: Once Python computes the top RAG chunks or sub-agent outputs, it returns the final context to Go as a JSON-formatted standard output. The Orchestrator then generates the final synthesized output.
 
 ## Prerequisites
 - Go 1.25+
-- Python 3 available in your system's PATH
 - Google Cloud Project with Vertex AI API enabled
 - Authenticated via Application Default Credentials (e.g., `gcloud auth application-default login`)
 - Docker & Docker Compose (optional, for containerized execution)
@@ -32,7 +33,7 @@ The application establishes an inter-process communication (IPC) channel between
 You must set the following environment variable before running the application:
 - `GOOGLE_CLOUD_PROJECT`: Your Google Cloud Project ID.
 
-Note: The application is configured to use the **`global`** Vertex AI endpoint exclusively for Gemini 3 Preview model compatibility.
+Note: The application uses the **`us-central1`** Vertex AI endpoint because the Agent Engine Code Execution Sandbox is currently only available in that region.
 
 ## Building and Running
 
