@@ -53,7 +53,7 @@ Instead of text-based Map-Reduce, you must use Semantic Search (RAG) to find rel
 
    Example (Sub-agents):
    from vertexai.generative_models import GenerativeModel
-   worker = GenerativeModel("gemini-3.1-flash-lite-preview")
+   worker = GenerativeModel("gemini-1.5-flash")
    response = worker.generate_content("Summary instruction...")
    print(response.text)
 

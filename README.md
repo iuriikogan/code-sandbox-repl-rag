@@ -11,14 +11,14 @@ Alternatively, a `LocalRunner` is provided that executes Python locally via `os/
 - **Language**: Go (`go 1.25.0`)
 - **SDK**: Google GenAI SDK (`google.golang.org/genai`) & Vertex AI API (`cloud.google.com/go/aiplatform`)
 - **Models Used**:
-  - `gemini-3-flash-preview` (Orchestrator)
-  - `gemini-3.1-flash-lite-preview` (Sub-agent worker)
-  - `gemini-3.1-pro-preview` (Final Synthesis)
+  - `gemini-1.5-flash` (Orchestrator)
+  - `gemini-1.5-flash` (Sub-agent worker)
+  - `gemini-1.5-pro` (Final Synthesis)
   - `text-embedding-004` (Semantic search / embeddings)
 - **External Execution**: Vertex AI Agent Engine Code Execution Sandbox (Primary) / Local Python 3 (Fallback)
 
 ## Architecture Details
-1. **Orchestrator Setup**: The Go app spins up an orchestrator with `gemini-3-flash-preview`, passing it an `execute_python_script` tool.
+1. **Orchestrator Setup**: The Go app spins up an orchestrator with `gemini-1.5-flash`, passing it an `execute_python_script` tool.
 2. **Context Passing**: An unstructured dummy dataset is created. The content is passed into the Vertex AI Sandbox via the API.
 3. **Execution**: When the generated Python script runs in the sandbox, it interacts directly with Vertex AI using the injected `PROJECT_ID` and `LOCATION`. It chunks the data, gets embeddings, and performs similarity search locally within the sandbox.
 4. **Synthesis**: Once Python computes the top RAG chunks or sub-agent outputs, it returns the final context to Go as a JSON-formatted standard output. The Orchestrator then generates the final synthesized output.

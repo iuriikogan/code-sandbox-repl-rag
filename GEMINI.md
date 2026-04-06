@@ -9,14 +9,14 @@ The application establishes an inter-process communication (IPC) channel between
 - **Language**: Go (`go 1.25.0`)
 - **SDK**: Google Cloud Vertex AI SDK (`cloud.google.com/go/vertexai`)
 - **Models Used**:
-  - `gemini-3-flash-preview` (Orchestrator)
-  - `gemini-3.1-flash-lite-preview` (Sub-agent worker)
-  - `gemini-3.1-pro-preview` (Final Synthesis)
+  - `gemini-1.5-flash` (Orchestrator)
+  - `gemini-1.5-flash` (Sub-agent worker)
+  - `gemini-1.5-pro` (Final Synthesis)
   - `text-embedding-004` (Semantic search / embeddings)
 - **External Execution**: Python 3 (via `os/exec` tool calling)
 
 ## Architecture Details
-1. **Orchestrator Setup**: The Go app spins up an orchestrator with `gemini-3-flash-preview`, passing it a `execute_python_script` tool.
+1. **Orchestrator Setup**: The Go app spins up an orchestrator with `gemini-1.5-flash`, passing it a `execute_python_script` tool.
 3. **IPC Loop**: When the Python script runs, it interacts with the Go host by printing JSON messages (e.g., `{"type": "embed", "chunk": "..."}`) to `stdout`. The Go app decodes this, executes the respective GenAI API calls (embeddings or flash sub-agents), and writes the results back to the Python process via `stdin`.
 4. **Synthesis**: Once Python computes the top RAG chunks or sub-agent outputs, it returns the final context to Go via a `{"type": "done"}` IPC message, allowing the Orchestrator to generate the final synthesized output.
 

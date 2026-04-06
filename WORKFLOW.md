@@ -45,7 +45,7 @@ graph TD
     
     D --> F
     F -->|"IPC: {'type': 'done'}"| G
-    G -.->|Vertex AI: gemini-3.1-pro-preview| G
+    G -.->|Vertex AI: gemini-1.5-pro| G
     G --> H[Final Summary Output]
 
     %% Styling
