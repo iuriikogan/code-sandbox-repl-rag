@@ -14,11 +14,11 @@ import (
 // Orchestrator manages the main RAG agent loop.
 type Orchestrator struct {
 	client *ai.Client
-	runner *python.Runner
+	runner python.Runner
 }
 
 // New creates a new Orchestrator.
-func New(client *ai.Client, runner *python.Runner) *Orchestrator {
+func New(client *ai.Client, runner python.Runner) *Orchestrator {
 	return &Orchestrator{
 		client: client,
 		runner: runner,
@@ -27,36 +27,68 @@ func New(client *ai.Client, runner *python.Runner) *Orchestrator {
 
 // Start begins the orchestration process.
 func (o *Orchestrator) Start(ctx context.Context, contextFileName string) error {
-	config := &genai.GenerateContentConfig{
-		Temperature: genai.Ptr(float32(0.2)),
-		SystemInstruction: &genai.Content{
-			Parts: []*genai.Part{genai.NewPartFromText(`You are an elite, cost-optimizing Agentic Router. 
-There is a massive, UNSTRUCTURED dataset saved at the file path provided in the 'CONTEXT_FILE' environment variable.
-Do NOT ask me for the data. Read it from the file.
+	// Detect if we're using the Cloud Sandbox to provide specific instructions
+	isSandbox := false
+	if _, ok := o.runner.(*python.SandboxRunner); ok {
+		isSandbox = true
+	}
+
+	systemInstruction := `You are an elite, cost-optimizing Agentic Router. 
+There is a massive, UNSTRUCTURED dataset saved at 'context.txt'.
+Do NOT ask me for the data. Read it from the file 'context.txt'.
 
 Your goal is to extract a comprehensive summary of all FINANCE related events.
 
 Instead of text-based Map-Reduce, you must use Semantic Search (RAG) to find relevant chunks extremely cheaply:
-1. Write a Python script (import sys, json, math) to read the file at 'CONTEXT_FILE'.
-2. Chunk the unstructured data into logical pieces (e.g., line-by-line).
+1. Write a Python script to read the file 'context.txt'.
+2. Chunk the unstructured data into logical pieces (e.g., line-by-line).`
+
+	if isSandbox {
+		systemInstruction += `
+3. Use the 'google.cloud.aiplatform' SDK to get embeddings for your chunks or to dispatch sub-agents.
+   Example (Embeddings):
+   from vertexai.language_models import TextEmbeddingModel
+   model = TextEmbeddingModel.from_pretrained("text-embedding-004")
+   embeddings = model.get_embeddings(["finance revenue", "cost metrics"])
+
+   Example (Sub-agents):
+   from vertexai.generative_models import GenerativeModel
+   worker = GenerativeModel("gemini-1.5-flash")
+   response = worker.generate_content("Summary instruction...")
+   print(response.text)
+
+4. Calculate Cosine Similarity locally in Python between the query vector and each chunk's vector.
+5. Dynamically determine the number of relevant chunks.
+6. Return those compiled high-value chunks by printing a JSON object: {"type": "done", "output": "<compiled_top_chunks>"}
+`
+	} else {
+		systemInstruction += `
 3. Embed your target query: Request a vector for a query like "finance revenue cost".
    - Print: {"type": "embed", "chunk": "finance revenue cost metrics"}
    - Flush stdout: sys.stdout.flush()
    - Read stdin: json.loads(sys.stdin.readline())["vector"]
 4. Iterate through your chunks and get their vectors using the exact same {"type": "embed"} IPC call.
 5. Calculate Cosine Similarity locally in Python between the query vector and each chunk's vector.
-6. Dynamically determine the number of relevant chunks (e.g., by finding a sharp drop-off in similarity scores or using a strict threshold like > 0.75). Only select the chunks that are truly relevant to the query.
+6. Dynamically determine the number of relevant chunks.
 7. Return those compiled high-value chunks back to me (the Orchestrator) by printing: {"type": "done", "output": "<compiled_top_chunks>"}
    - Flush stdout immediately: sys.stdout.flush()
+`
+	}
 
-Once the Python tool returns the highly relevant chunks, YOU (the Orchestrator) will read them, reason over them, and output the final, polished summary.`)} ,
+	systemInstruction += `
+Once the Python tool returns the highly relevant chunks, YOU (the Orchestrator) will read them, reason over them, and output the final, polished summary.`
+
+	config := &genai.GenerateContentConfig{
+		Temperature: genai.Ptr(float32(0.2)),
+		SystemInstruction: &genai.Content{
+			Parts: []*genai.Part{genai.NewPartFromText(systemInstruction)},
 		},
 	}
 
 	pythonReplTool := &genai.Tool{
 		FunctionDeclarations: []*genai.FunctionDeclaration{{
 			Name:        "execute_python_script",
-			Description: "Executes Python code in a separate process. Communicate via JSON over sys.stdout and sys.stdin as instructed.",
+			Description: "Executes Python code in a separate process or secure sandbox environment. Communicate via standard output and formatted JSON as instructed.",
 			Parameters: &genai.Schema{
 				Type: genai.TypeObject,
 				Properties: map[string]*genai.Schema{

@@ -20,10 +20,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
-	if location == "" {
-		location = "us-central1" // Fallback to the default Vertex AI region
-	}
+	// Use us-central1 as it is the only region supporting Code Execution currently
+	const location = "us-central1"
 
 	// Initialize the Vertex AI client wrapper
 	client, err := ai.NewClient(ctx, projectID, location)
@@ -42,8 +40,12 @@ func main() {
 	}
 	defer cleanup()
 
-	// Initialize the Python script runner
-	runner := python.NewRunner()
+	// Initialize the Python script runner (Vertex AI Agent Engine Sandbox)
+	runner, err := python.NewSandboxRunner(ctx, projectID, location)
+	if err != nil {
+		slog.Error("Failed to initialize Sandbox runner", "error", err)
+		os.Exit(1)
+	}
 
 	// Start the orchestration loop
 	orch := orchestrator.New(client, runner)
