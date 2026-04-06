@@ -7,11 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: code-sandbox-repl
     environment:
-      # Inject Google Cloud project and location from host environment
       - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
-      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION:-us-central1}
-      # Tell the Google Cloud SDK where to find the mounted credentials
-      - GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
     volumes:
       # Mount the host's gcloud config directory so the container can authenticate via ADC
       # Requires the host to have run `gcloud auth application-default login`

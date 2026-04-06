@@ -18,12 +18,17 @@ type IPCHandler interface {
 	HandleEmbed(ctx context.Context, chunk string) []float32
 }
 
-// Runner provides methods to execute Python scripts.
-type Runner struct{}
+// Runner defines the interface for executing Python scripts.
+type Runner interface {
+	ExecuteScript(ctx context.Context, code string, contextFileName string, handler IPCHandler) (string, error)
+}
 
-// NewRunner creates a new Python runner.
-func NewRunner() *Runner {
-	return &Runner{}
+// LocalRunner provides methods to execute Python scripts locally.
+type LocalRunner struct{}
+
+// NewRunner creates a new local Python runner.
+func NewRunner() Runner {
+	return &LocalRunner{}
 }
 
 // getPythonCmd locates the Python executable on the system.
@@ -35,7 +40,7 @@ func getPythonCmd() string {
 }
 
 // ExecuteScript runs a Python script, connecting it to the provided handler via JSON over stdout/stdin.
-func (r *Runner) ExecuteScript(ctx context.Context, code string, contextFileName string, handler IPCHandler) (string, error) {
+func (r *LocalRunner) ExecuteScript(ctx context.Context, code string, contextFileName string, handler IPCHandler) (string, error) {
 	tmpFile, err := os.CreateTemp("", "script-*.py")
 	if err != nil {
 		return "", err

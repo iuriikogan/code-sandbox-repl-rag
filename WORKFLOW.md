@@ -29,7 +29,7 @@ graph TD
     E -->|"IPC: {'vector': [... ]}"| D
     D --> F
     F -->|"IPC: {'type': 'done'}"| G
-    G -.->|Vertex AI: gemini-3.1-pro| G
+    G -.->|Vertex AI: gemini-3.1-pro-preview| G
     G --> H[Final Summary Output]
 
     %% Styling
