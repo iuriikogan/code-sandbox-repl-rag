@@ -70,12 +70,6 @@ Tests are enforced to run with `-count=1` to prevent caching:
 make test
 ```
 
-## Development Conventions
-- **Code Style**: Standard Go conventions (use `gofmt` and `goimports`).
-- **Logging**: The project uses the standard library's structured logging (`log/slog`).
-- **Dependencies**: Managed via Go modules (`go.mod`, `go.sum`).
-- **Tool Calling**: Handled manually via native `os/exec` and standard input/output pipes rather than containerized runtimes, requiring careful handling of JSON marshaling and scanner buffers (up to 10MB allocated for IPC).
-
 ## Project Structure
 - `cmd/sandbox/main.go`: Main application entry point.
 - `internal/ai/`: Wrappers and clients for Google Cloud Vertex AI interactions.
