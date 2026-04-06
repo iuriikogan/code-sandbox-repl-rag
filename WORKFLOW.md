@@ -24,11 +24,11 @@ graph TD
     %% Flow
     A -->|System Instructions| B
     B -->|execute_python_script| C
-    C -->|IPC: {'type': 'embed'}| E
+    C -->|"IPC: {'type': 'embed'}"| E
     E -.->|Vertex AI: text-embedding-004| E
-    E -->|IPC: {'vector': [... ]}| D
+    E -->|"IPC: {'vector': [... ]}"| D
     D --> F
-    F -->|IPC: {'type': 'done'}| G
+    F -->|"IPC: {'type': 'done'}"| G
     G -.->|Vertex AI: gemini-3.1-pro| G
     G --> H[Final Summary Output]
 
