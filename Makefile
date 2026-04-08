@@ -1,4 +1,4 @@
-.PHONY: all build run test clean docker-build
+.PHONY: all build run test bench clean docker-build
 
 APP_NAME = code-sandbox
 MAIN_PATH = ./cmd/sandbox/main.go
@@ -16,6 +16,10 @@ run:
 test:
 	@echo "==> Running tests..."
 	go test -count=1 ./...
+
+bench:
+	@echo "==> Running benchmarks..."
+	go test -bench=. -benchmem ./...
 
 clean:
 	@echo "==> Cleaning up..."
