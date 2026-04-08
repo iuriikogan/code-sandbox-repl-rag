@@ -50,14 +50,9 @@ func main() {
 	spinner.Stop("✓ Dataset generated.")
 	defer cleanup()
 
-	// Initialize the Python script runner (Vertex AI Agent Engine Sandbox)
-	slog.Info("Initializing Cloud Sandbox runner (Reasoning Engine)...")
-	runner, err := python.NewSandboxRunner(ctx, projectID, location)
-	if err != nil {
-		slog.Error("Failed to initialize Sandbox runner", "error", err)
-		os.Exit(1)
-	}
-
+	        // Initialize the Python script runner locally with IPC
+	        slog.Info("Initializing Local IPC runner...")
+	        runner := python.NewRunner()
 	// Start the orchestration loop
 	slog.Info("Starting Orchestrator loop...")
 	orch := orchestrator.New(client, runner)

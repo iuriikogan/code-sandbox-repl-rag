@@ -30,44 +30,37 @@ func (o *Orchestrator) Start(ctx context.Context, contextFileName string, initia
 
 	systemInstruction := `You are an elite, cost-optimizing Agentic Router. 
 
-	There is a massive, UNSTRUCTURED dataset saved at 'context.txt' (approx 50MB / 1.2M+ lines).
-
-	Do NOT ask me for the data. Read it from the file 'context.txt'.
-
+	        There is a massive, UNSTRUCTURED dataset. The path to this file is stored in the environment variable 'CONTEXT_FILE'.
 	
-
-	Your goal is to extract a comprehensive summary of all highly relevant events.
-
+	        Do NOT ask me for the data. Read it from the file path in 'CONTEXT_FILE'.
 	
-
-	Because the dataset is massive, you MUST use a Two-Stage Hybrid Search (Lexical + Semantic) to be efficient:
-
-	1. Write a Python script to read the file 'context.txt'.
-
+	        Your goal is to extract a comprehensive summary of all highly relevant events.
+	
+	        Because the dataset is massive, you MUST use a Two-Stage Hybrid Search (Lexical + Semantic) to be efficient:
+	
+	        1. Write a Python script to read the file located at the path in the 'CONTEXT_FILE' environment variable.
 	2. STAGE 1 (Lexical Filter): Chunk the data. Extract keywords from your target query and use pure Python string matching (or regex) to aggressively filter the millions of lines down to a maximum of 500 candidate chunks.
 
 	3. STAGE 2 (Semantic Search): Use embeddings ONLY on those few hundred candidate chunks.
 
 	
 
-	4. Use the 'google.cloud.aiplatform' SDK to get embeddings for your candidate chunks and your query.
-
-	   Example (Embeddings):
-
-	   from vertexai.language_models import TextEmbeddingModel
-
-	   model = TextEmbeddingModel.from_pretrained("text-embedding-004")
-
-	   embeddings = model.get_embeddings(["candidate one", "candidate two"])
-
+	        4. Use standard input and output to request embeddings from the Go host via IPC.
+	           Example (Embeddings via IPC):
+	           import sys, json
+	           print(json.dumps({"type": "embed", "chunk": "your string here"}))
+	           sys.stdout.flush()
+	           response = json.loads(sys.stdin.readline())
+	           vector = response.get("vector")
 	
-
-	5. Calculate Cosine Similarity locally in Python between the query vector and each candidate chunk's vector.
-
-	6. Dynamically determine the highly relevant chunks (e.g., top 5 to 10).
-
-	7. Return those compiled high-value chunks by printing them clearly to stdout. Do NOT print the 45MB file. Print ONLY the final synthesized RAG chunks.
-
+	        5. Calculate Cosine Similarity locally in Python between the query vector and each candidate chunk's vector.
+	
+	        6. Dynamically determine the highly relevant chunks (e.g., top 5 to 10).
+	
+	        7. Return those compiled high-value chunks by printing a JSON message with type 'done' to stdout.
+	           Example:
+	           print(json.dumps({"type": "done", "output": "your final synthesized context chunks"}))
+	           sys.stdout.flush()
 	`
 
 	
