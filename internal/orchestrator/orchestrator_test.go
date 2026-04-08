@@ -2,7 +2,7 @@ package orchestrator
 
 import (
 	"testing"
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/python"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/python"
 )
 
 func TestNewOrchestrator(t *testing.T) {

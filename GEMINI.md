@@ -1,7 +1,7 @@
 # Code Sandbox REPL RAG
 
 ## Project Overview
-This project is a Go-based agentic Retrieval-Augmented Generation (RAG) simulation. It demonstrates how to build an Orchestrator agent using Google's Gemini models (`gemini-3-flash-preview`) that can autonomously execute generated Python code to process massive unstructured context data.
+This project is a Go-based agentic Retrieval-Augmented Generation (RAG) simulation. It demonstrates how to build an Orchestrator agent using Google's Gemini models (`gemini-2.5-flash`) that can autonomously execute generated Python code to process massive unstructured context data.
 
 The application establishes an inter-process communication (IPC) channel between Go and a spawned Python process using standard input/output streams and JSON. The Python process performs local chunking and semantic search (Cosine Similarity) by requesting vector embeddings from the Go host, which proxies requests to the `text-embedding-004` model. Furthermore, the Python script can spin up sub-agents (`gemini-3.1-flash-lite-preview`) via the Go host to perform targeted tasks on chunks of data.
 
@@ -9,14 +9,14 @@ The application establishes an inter-process communication (IPC) channel between
 - **Language**: Go (`go 1.25.0`)
 - **SDK**: Google Cloud Vertex AI SDK (`cloud.google.com/go/vertexai`)
 - **Models Used**:
-  - `gemini-1.5-flash` (Orchestrator)
-  - `gemini-1.5-flash` (Sub-agent worker)
-  - `gemini-1.5-pro` (Final Synthesis)
+  - `gemini-2.5-flash` (Orchestrator)
+  - `gemini-2.5-flash` (Sub-agent worker)
+  - `gemini-2.5-pro` (Final Synthesis)
   - `text-embedding-004` (Semantic search / embeddings)
 - **External Execution**: Python 3 (via `os/exec` tool calling)
 
 ## Architecture Details
-1. **Orchestrator Setup**: The Go app spins up an orchestrator with `gemini-1.5-flash`, passing it a `execute_python_script` tool.
+1. **Orchestrator Setup**: The Go app spins up an orchestrator with `gemini-2.5-flash`, passing it a `execute_python_script` tool.
 3. **IPC Loop**: When the Python script runs, it interacts with the Go host by printing JSON messages (e.g., `{"type": "embed", "chunk": "..."}`) to `stdout`. The Go app decodes this, executes the respective GenAI API calls (embeddings or flash sub-agents), and writes the results back to the Python process via `stdin`.
 4. **Synthesis**: Once Python computes the top RAG chunks or sub-agent outputs, it returns the final context to Go via a `{"type": "done"}` IPC message, allowing the Orchestrator to generate the final synthesized output.
 

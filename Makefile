@@ -1,4 +1,4 @@
-.PHONY: all build run test clean docker-build docker-up docker-down
+.PHONY: all build run test clean docker-build
 
 APP_NAME = code-sandbox
 MAIN_PATH = ./cmd/sandbox/main.go
@@ -25,10 +25,3 @@ docker-build:
 	@echo "==> Building Docker image..."
 	docker-compose build
 
-docker-up:
-	@echo "==> Starting Docker container..."
-	docker-compose up
-
-docker-down:
-	@echo "==> Stopping Docker container..."
-	docker-compose down

@@ -1,15 +1,11 @@
 package python
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
-	"strings"
-
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/ipc"
 )
 
 // IPCHandler defines the interface for handling IPC calls from the Python script.
@@ -23,7 +19,7 @@ type Runner interface {
 	ExecuteScript(ctx context.Context, code string, contextFileName string, handler IPCHandler) (string, error)
 }
 
-// LocalRunner provides methods to execute Python scripts locally.
+// LocalRunner provides methods to execute Python scripts locally without IPC loops.
 type LocalRunner struct{}
 
 // NewRunner creates a new local Python runner.
@@ -31,7 +27,6 @@ func NewRunner() Runner {
 	return &LocalRunner{}
 }
 
-// getPythonCmd locates the Python executable on the system.
 func getPythonCmd() string {
 	if _, err := exec.LookPath("python3"); err == nil {
 		return "python3"
@@ -39,7 +34,7 @@ func getPythonCmd() string {
 	return "python"
 }
 
-// ExecuteScript runs a Python script, connecting it to the provided handler via JSON over stdout/stdin.
+// ExecuteScript runs a Python script natively and reads stdout.
 func (r *LocalRunner) ExecuteScript(ctx context.Context, code string, contextFileName string, handler IPCHandler) (string, error) {
 	tmpFile, err := os.CreateTemp("", "script-*.py")
 	if err != nil {
@@ -59,12 +54,6 @@ func (r *LocalRunner) ExecuteScript(ctx context.Context, code string, contextFil
 	if err != nil {
 		return "", err
 	}
-
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return "", err
-	}
-
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return "", err
@@ -74,50 +63,19 @@ func (r *LocalRunner) ExecuteScript(ctx context.Context, code string, contextFil
 		return "", err
 	}
 
-	var finalOutput string
-	var debugLogs strings.Builder
-
-	// Use a large buffer to accommodate potentially massive JSON chunks
-	scanner := bufio.NewScanner(stdout)
-	buf := make([]byte, 0, 1024*1024)
-	scanner.Buffer(buf, 10*1024*1024)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		var msg ipc.Message
-
-		if err := json.Unmarshal([]byte(line), &msg); err != nil {
-			// Not a valid JSON IPC message, treat as debug output
-			debugLogs.WriteString(line + "\n")
-			continue
-		}
-
-		if msg.Type == "call" {
-			res := handler.HandleCall(ctx, msg.Instruction, msg.Chunk)
-			respBytes, _ := json.Marshal(ipc.Message{Result: res})
-			stdin.Write(append(respBytes, '\n'))
-		} else if msg.Type == "embed" {
-			vec := handler.HandleEmbed(ctx, msg.Chunk)
-			respBytes, _ := json.Marshal(ipc.Message{Vector: vec})
-			stdin.Write(append(respBytes, '\n'))
-		} else if msg.Type == "done" {
-			finalOutput = msg.Output
-		}
-	}
-
+	outBytes, _ := io.ReadAll(stdout)
 	errBytes, _ := io.ReadAll(stderr)
-	cmd.Wait() // wait for process to finish
+	cmd.Wait()
 
-	if finalOutput == "" {
+	outStr := string(outBytes)
+	if outStr == "" {
 		resultStr := "Execution finished without returning a 'done' message.\n"
-		if debugLogs.Len() > 0 {
-			resultStr += "Standard Output (Debug):\n" + debugLogs.String() + "\n"
-		}
 		if len(errBytes) > 0 {
 			resultStr += "Standard Error:\n" + string(errBytes)
 		}
+		slog.Warn(resultStr)
 		return resultStr, nil
 	}
 
-	return finalOutput, nil
+	return outStr, nil
 }

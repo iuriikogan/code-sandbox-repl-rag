@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/data"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/data"
 )
 
 // approximateTokenCount estimates tokens by dividing character count by 4.
@@ -16,16 +16,16 @@ func approximateTokenCount(text string) float64 {
 
 // Hypothetical pricing rates (USD per 1 Million tokens) based on Gemini pricing guidelines.
 const (
-	PriceProInputPer1M   = 3.50  // gemini-1.5-pro approx input cost
-	PriceFlashInputPer1M = 0.075 // gemini-1.5-flash approx input cost
+	PriceProInputPer1M   = 3.50  // gemini-2.5-pro approx input cost
+	PriceFlashInputPer1M = 0.075 // gemini-2.5-flash approx input cost
 	PriceEmbeddingPer1M  = 0.02  // text-embedding-004 approx cost
 )
 
 func getModelPrice(modelName string) float64 {
 	switch modelName {
-	case "gemini-1.5-pro":
+	case "gemini-2.5-pro":
 		return PriceProInputPer1M
-	case "gemini-1.5-flash", "gemini-1.5-flash-lite":
+	case "gemini-2.5-flash", "gemini-2.5-flash-lite":
 		return PriceFlashInputPer1M
 	default:
 		// Defaulting to Flash if unknown
