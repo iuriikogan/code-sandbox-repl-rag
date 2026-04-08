@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"google.golang.org/genai"
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/python"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/python"
 )
 
 // Orchestrator manages the main RAG agent loop.
