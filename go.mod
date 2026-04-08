@@ -1,4 +1,4 @@
-module githuob.com/iuriikogan/code-sandbox-repl-rag
+module github.com/iuriikogan/code-sandbox-repl-rag
 
 go 1.25.0
 

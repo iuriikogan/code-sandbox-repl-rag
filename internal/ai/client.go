@@ -10,7 +10,7 @@ import (
 
 const (
 	OrchestratorModelName   = "gemini-2.5-flash"
-	WorkerModelName         = "gemini-2.5-flash"
+	WorkerModelName         = "gemini-2.5-flash-lite"
 	FinalSynthesisModelName = "gemini-2.5-pro"
 	EmbeddingModelName      = "text-embedding-004"
 )

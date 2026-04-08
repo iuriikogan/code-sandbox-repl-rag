@@ -21,73 +21,53 @@
 
 ### Key Technologies
 - **Language**: Go (`go 1.25.0`)
-- **SDK**: Google GenAI SDK (`google.golang.org/genai`) & Vertex AI API (`cloud.google.com/go/aiplatform`)
+- **SDK**: Google GenAI SDK (`google.golang.org/genai`)
 - **Models Used**:
   - `gemini-2.5-flash` (Orchestrator)
-  - `gemini-2.5-flash` (Sub-agent worker)
+  - `gemini-2.5-flash-lite` (Sub-agent worker)
   - `gemini-2.5-pro` (Final Synthesis)
   - `text-embedding-004` (Semantic search / embeddings)
-- **External Execution**: Vertex AI Agent Engine Code Execution Sandbox (Primary) / Local Python 3 (Fallback)
+- **Execution Environment**: Vertex AI Reasoning Engines (Cloud Sandbox)
 
 ## Architecture Details
-1. **Orchestrator Setup**: The Go app spins up an orchestrator with `gemini-2.5-flash`, passing it an `execute_python_script` tool.
-2. **Context Passing**: An unstructured dummy dataset is created. The content is passed into the Vertex AI Sandbox via the API.
-3. **Execution**: When the generated Python script runs in the sandbox, it interacts directly with Vertex AI using the injected `PROJECT_ID` and `LOCATION`. It chunks the data, gets embeddings, and performs similarity search locally within the sandbox.
-4. **Synthesis**: Once Python computes the top RAG chunks or sub-agent outputs, it returns the final context to Go as a JSON-formatted standard output. The Orchestrator then generates the final synthesized output.
+1. **Context Generation**: Go dynamically creates a 45MB ultra-massive dataset simulating deep engineering memory leaks and multi-generational medical diagnostic data.
+2. **GCS Upload**: The unstructured dataset is uploaded to a Google Cloud Storage bucket (`rag-sandbox-obj-{project}-us-central1`).
+3. **Orchestrator Setup**: The Go app spins up an orchestrator with `gemini-2.5-flash`, passing it an `run_rag_agent_logic` tool.
+4. **Execution**: The generated Python script is sent to the deployed Vertex AI Reasoning Engine via the `:query` API path attached to a custom executor. It pulls the context from GCS, runs the hybrid RAG logic locally within the container, and returns the top highly-relevant chunks.
+5. **Synthesis**: The Orchestrator receives the parsed, high-value chunks and feeds them into `gemini-2.5-pro` for a final, polished reasoning output.
 
 ## Prerequisites
 - Go 1.25+
+- Python 3 & pip
 - Google Cloud Project with Vertex AI API enabled
-- Authenticated via Application Default Credentials (e.g., `gcloud auth application-default login`)
-- Docker & Docker Compose (optional, for containerized execution)
+- Authenticated via Application Default Credentials (`gcloud auth application-default login`)
 
 ### Environment Variables
 You must set the following environment variable before running the application:
 - `GOOGLE_CLOUD_PROJECT`: Your Google Cloud Project ID.
 
-Note: The application uses the **`us-central1`** Vertex AI endpoint because the Agent Engine Code Execution Sandbox is currently only available in that region.
+Note: The application uses the **`us-central1`** Vertex AI endpoint exclusively, as it is the target region for Agent Engine features.
 
-## Building and Running
+## Setup & Running
 
-This project provides a `Makefile` to simplify common operations.
-
-### Run Locally
-
-To run the project directly:
+### 1. Provision the Cloud Sandbox
+Before running the Go application, you **must** provision the Reasoning Engine and GCS bucket on your Google Cloud Project. This takes about 3-5 minutes.
 ```bash
 export GOOGLE_CLOUD_PROJECT="your-project-id"
-make run
+./setup_sandbox.sh
 ```
 
-To build a binary and run it:
+### 2. Run the RAG Simulation
+To run the Go orchestrator:
 ```bash
 export GOOGLE_CLOUD_PROJECT="your-project-id"
-make build
-./code-sandbox
-```
-
-### Run via Docker
-
-To run the application in a Docker container using `docker-compose`:
-```bash
-# Build the image
-make docker-build
-
-# Start the container
-make docker-up
-```
-
-### Testing
-
-Tests are enforced to run with `-count=1` to prevent caching:
-```bash
-make test
+go run cmd/sandbox/main.go
 ```
 
 ## Project Structure
 - `cmd/sandbox/main.go`: Main application entry point.
-- `internal/ai/`: Wrappers and clients for Google Cloud Vertex AI interactions.
-- `internal/data/`: Data generation and context handling.
-- `internal/ipc/`: Go-Python Inter-Process Communication logic.
-- `internal/orchestrator/`: Primary agent orchestration and GenAI coordination loop.
-- `internal/python/`: Python subprocess execution and management.
+- `internal/ai/`: Wrappers and clients for Google GenAI interactions.
+- `internal/data/`: Massive dataset generator (1.2M+ lines / 45MB).
+- `internal/orchestrator/`: Primary agent orchestration and GenAI loop.
+- `internal/python/`: Execution logic for interfacing with Vertex AI Reasoning Engines and local fallback runners.
+- `internal/ui/`: Terminal spinners and visual feedback.

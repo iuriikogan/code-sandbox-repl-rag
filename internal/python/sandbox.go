@@ -13,9 +13,10 @@ import (
 
 	"google.golang.org/api/option"
 	htransport "google.golang.org/api/transport/http"
+
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/ui"
 )
 
-// SandboxRunner executes Python code in a Vertex AI Agent Engine sandbox.
 type SandboxRunner struct {
 	projectID  string
 	location   string
@@ -23,10 +24,8 @@ type SandboxRunner struct {
 	engineID   string
 }
 
-// NewSandboxRunner creates a new SandboxRunner.
 func NewSandboxRunner(ctx context.Context, projectID, location string) (*SandboxRunner, error) {
 	if location == "global" {
-		// Agent Engine Code Execution is currently only in us-central1
 		location = "us-central1"
 	}
 
@@ -45,47 +44,56 @@ func NewSandboxRunner(ctx context.Context, projectID, location string) (*Sandbox
 	}, nil
 }
 
-// ExecuteScript runs a Python script in a Vertex AI Sandbox.
-// It ignores the IPCHandler for now as we transition to a cloud-native model.
 func (r *SandboxRunner) ExecuteScript(ctx context.Context, code string, contextFileName string, handler IPCHandler) (string, error) {
-	slog.Info("Executing Python in Vertex AI Sandbox...")
-
-	// 1. Get or Create Reasoning Engine
 	if r.engineID == "" {
-		id, err := r.getOrCreateReasoningEngine(ctx)
+		spinner := ui.NewSpinner("Looking up deployed Reasoning Engine...")
+		spinner.Start()
+		id, err := r.getReasoningEngine(ctx)
+		spinner.Stop("")
 		if err != nil {
-			return "", fmt.Errorf("failed to ensure reasoning engine: %w", err)
+			return "", err
 		}
 		r.engineID = id
 	}
 
-	// 2. Create Sandbox (or reuse if we want to be persistent, but for now we create one)
+	spinner := ui.NewSpinner("Provisioning secure Vertex AI Sandbox container...")
+	spinner.Start()
 	sandboxID, err := r.createSandbox(ctx)
 	if err != nil {
+		spinner.Stop("")
 		return "", fmt.Errorf("failed to create sandbox: %w", err)
 	}
+	spinner.Stop("✓ Secure Sandbox provisioned.")
 	defer r.deleteSandbox(ctx, sandboxID)
 
-	// 3. Read context file to pass into the sandbox
+	spinner = ui.NewSpinner("Reading 45MB context file...")
+	spinner.Start()
 	contextContent, err := os.ReadFile(contextFileName)
 	if err != nil {
+		spinner.Stop("")
 		return "", fmt.Errorf("failed to read context file: %w", err)
 	}
+	spinner.Stop("✓ Context read.")
 
-	// 4. Inject project and location into the code
 	injectedCode := fmt.Sprintf(`import os
-os.environ['PROJECT_ID'] = "%s"
-os.environ['LOCATION'] = "%s"
+os.environ["PROJECT_ID"] = "%s"
+os.environ["LOCATION"] = "%s"
 import vertexai
 vertexai.init(project="%s", location="%s")
 %s`, r.projectID, r.location, r.projectID, r.location, code)
 
-	// 5. Execute Code
-	return r.executeCode(ctx, sandboxID, injectedCode, contextContent)
+	spinner = ui.NewSpinner("Executing Python (hybrid search over 45MB data) in Sandbox via :executeCode...")
+	spinner.Start()
+	out, err := r.executeCode(ctx, sandboxID, injectedCode, contextContent)
+	spinner.Stop("")
+	if err != nil {
+		return out, err
+	}
+	slog.Info("✓ Cloud Sandbox execution complete.")
+	return out, nil
 }
 
-func (r *SandboxRunner) getOrCreateReasoningEngine(ctx context.Context) (string, error) {
-	// For simplicity, we search for one named "rag-simulation-engine" or create it.
+func (r *SandboxRunner) getReasoningEngine(ctx context.Context) (string, error) {
 	displayName := "rag-simulation-engine"
 	parent := fmt.Sprintf("projects/%s/locations/%s", r.projectID, r.location)
 	url := fmt.Sprintf("https://%s-aiplatform.googleapis.com/v1beta1/%s/reasoningEngines", r.location, parent)
@@ -109,57 +117,10 @@ func (r *SandboxRunner) getOrCreateReasoningEngine(ctx context.Context) (string,
 
 	for _, re := range listResp.ReasoningEngines {
 		if re.DisplayName == displayName {
-			// Extract ID from full name
 			return re.Name, nil
 		}
 	}
-
-	// Create new one
-	slog.Info("Creating new Reasoning Engine...")
-	createURL := url
-	payload := map[string]any{
-		"display_name": displayName,
-		"spec": map[string]any{
-			"package_spec": map[string]any{
-				"python_version": "3.10",
-			},
-		},
-	}
-	payloadBytes, _ := json.Marshal(payload)
-	req, _ = http.NewRequestWithContext(ctx, "POST", createURL, bytes.NewReader(payloadBytes))
-	req.Header.Set("Content-Type", "application/json")
-	resp, err = r.httpClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("failed to create reasoning engine: %s", string(body))
-	}
-
-	var op struct {
-		Name     string `json:"name"`
-		Response struct {
-			Name string `json:"name"`
-		} `json:"response"`
-		Done bool `json:"done"`
-	}
-	// Note: In a real app, you should wait for the LRO.
-	// But for this simulation, we'll assume it's fast or just error out.
-	if err := json.NewDecoder(resp.Body).Decode(&op); err != nil {
-		return "", err
-	}
-	
-	// If it's an LRO, we should wait.
-	if !op.Done {
-		// Just wait a bit for simulation purposes, or poll.
-		slog.Info("Waiting for Reasoning Engine creation...")
-		return "", fmt.Errorf("Reasoning Engine creation started (LRO: %s), please try again in a few seconds", op.Name)
-	}
-
-	return op.Response.Name, nil
+	return "", fmt.Errorf("Reasoning Engine '%s' not found. Please run setup_sandbox.sh first", displayName)
 }
 
 func (r *SandboxRunner) createSandbox(ctx context.Context) (string, error) {
@@ -192,8 +153,8 @@ func (r *SandboxRunner) createSandbox(ctx context.Context) (string, error) {
 	return sandbox.Name, nil
 }
 
-func (r *SandboxRunner) deleteSandbox(ctx context.Context, name string) {
-	url := fmt.Sprintf("https://%s-aiplatform.googleapis.com/v1beta1/%s", r.location, name)
+func (r *SandboxRunner) deleteSandbox(ctx context.Context, sandboxName string) {
+	url := fmt.Sprintf("https://%s-aiplatform.googleapis.com/v1beta1/%s", r.location, sandboxName)
 	req, _ := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	r.httpClient.Do(req)
 }
