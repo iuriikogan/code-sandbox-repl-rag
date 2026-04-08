@@ -1,11 +1,23 @@
 # Code Sandbox REPL RAG
 
 ## Project Overview
-This project is a Go-based agentic Retrieval-Augmented Generation (RAG) simulation. It demonstrates how to build an Orchestrator agent using Google's Gemini models (`gemini-3-flash-preview`) that can autonomously execute generated Python code to process massive unstructured context data.
+*Secure, Isolated Execution* By leveraging the Vertex AI Agent Engine Code Execution Sandbox, the system safely runs AI-generated Python code in a secure cloud environment, preventing malicious or flawed code from affecting the host machine.
 
-The application leverages the **Vertex AI Agent Engine Code Execution Sandbox** (`cloud.google.com/go/aiplatform/apiv1beta1`) for secure, isolated Python execution. The Python script runs in the cloud and uses the `vertexai` Python SDK to perform local chunking, generate embeddings (`text-embedding-004`), and calculate Cosine Similarity. Furthermore, the Python script can spin up sub-agents (`gemini-3.1-flash-lite-preview`) within the sandbox to perform targeted tasks on chunks of data.
+*Dynamic Data Processing (Agentic RAG)* Instead of relying on a static data pipeline, an orchestrator agent autonomously writes custom code to handle chunking, embedding generation, and cosine similarity searches specifically tailored to the immediate dataset.
 
-Alternatively, a `LocalRunner` is provided that executes Python locally via `os/exec` and communicates with the Go host over an IPC channel via JSON over standard input/output.
+*Hierarchical Agent Swarms* The executed Python scripts can dynamically spin up smaller sub-agents within the sandbox to perform highly targeted tasks on specific data chunks in parallel.
+
+*Strategic Model Routing* The architecture optimizes performance and cost by using faster models (Gemini Flash) for orchestration and sub-agent work, a specialized embedding model for semantic search, and a heavier reasoning model (Gemini Pro) for final synthesis.
+
+### Benefits
+
+*Uncompromised Security for Code Generation*: Because LLMs can sometimes hallucinate destructive commands, sandboxing the execution ensures enterprise-grade security, allowing developers to safely experiment with code-generating agents.
+
+*Massive Scalability*: Shifting the heavy lifting—chunking, embedding, and similarity search—into an isolated cloud environment allows the application to process massive unstructured datasets that would otherwise overwhelm local memory.
+
+*Highly Contextual Retrieval*: Traditional RAG relies on rigid, predefined chunking strategies that often miss context. This agentic approach writes bespoke logic to navigate the data, drastically improving the relevance of the retrieved context.
+
+*Superior Final Output*: By ensuring that the data is meticulously filtered and processed by sub-agents before being handed to a powerful synthesis model, the final generation achieves a higher degree of accuracy and reasoning quality.
 
 ### Key Technologies
 - **Language**: Go (`go 1.25.0`)
