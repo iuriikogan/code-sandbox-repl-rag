@@ -6,7 +6,7 @@ import (
 )
 
 func TestGenerateUltraMassiveContext(t *testing.T) {
-	content := GenerateUltraMassiveContext()
+	content := GenerateUltraMassiveContext(1200000)
 	size := len(content)
 	t.Logf("Generated context size: %d bytes (~%.2f MB)", size, float64(size)/(1024*1024))
 	

@@ -40,7 +40,7 @@ func main() {
 	// Create a temporary file for the massive context data
 	spinner := ui.NewSpinner("Generating 45MB ultra-massive context dataset...")
 	spinner.Start()
-	contextContent := data.GenerateUltraMassiveContext()
+	contextContent := data.GenerateUltraMassiveContext(1200000)
 	contextFilePath, cleanup, err := data.CreateContextFile(contextContent)
 	if err != nil {
 		spinner.Stop("")
@@ -60,10 +60,9 @@ func main() {
 1. Medical: Trace the genetic link between Patient A, B, and C, and explain the acute ER admission of Patient C.
 2. Engineering: Identify the root cause of the OOM kills in Service Omega, including the triggering service and proxy issue.`
 
-	if err := orch.Start(ctx, contextFilePath, prompt); err != nil {
-		slog.Error("Orchestrator finished with error", "error", err)
-		os.Exit(1)
-	}
-
+	        if _, err := orch.Start(ctx, contextFilePath, prompt); err != nil {
+	                slog.Error("Orchestrator finished with error", "error", err)
+	                os.Exit(1)
+	        }
 	slog.Info("Orchestrator finished successfully.")
 }
