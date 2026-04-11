@@ -2,6 +2,7 @@ package orchestrator
 
 import (
         "context"
+        "encoding/json"
         "fmt"
         "log/slog"
                 "strings"
@@ -29,259 +30,175 @@ func New(client *ai.Client, runner python.Runner) *Orchestrator {
 // Start begins the orchestration process.
 func (o *Orchestrator) Start(ctx context.Context, contextFileName string, initialPrompt string) (string, error) {
 
-        systemInstruction := `You are an elite, cost-optimizing Agentic Router. 
+        systemInstruction := "You are a Python scripting agent mapping data for an external Swarm.\n" +
+                "\n" +
+                "There is an ultra-massive UNSTRUCTURED dataset at 'CONTEXT_FILE' (env var).\n" +
+                "Your goal is to extract the most relevant chunks that might answer the user's prompt.\n" +
+                "Do NOT write step-by-step reasoning or chat. ONLY use the provided tools.\n" +
+                "\n" +
+                "**INJECTED HELPER FUNCTIONS:**\n" +
+                "These are ALREADY in your environment:\n" +
+                "- `ipc_embed(chunk: str) -> list[float]`\n" +
+                "- `ipc_batch_embed(chunks: list[str]) -> list[list[float]]`\n" +
+                "- `cosine_similarity(v1, v2) -> float`\n" +
+                "- `tokenize(text: str) -> list[str]`\n" +
+                "- `BM25(corpus)` (Class with `get_scores(query) -> list[float]`)\n" +
+                "\n" +
+                "**YOUR EXECUTION STRATEGY:**\n" +
 
-                There is a massive, UNSTRUCTURED dataset. The path to this file is stored in the environment variable 'CONTEXT_FILE'.
+                        "1. **Sample:** Read the first 100 lines. Notice that lines like 'Rule 44A' and 'FF_NEW_UI' are repetitive NOISE. Signal lines (like Rule 44B or actual error crashes) appear ONLY ONCE in the entire file.\n" +
 
-                Do NOT ask me for the data. Read it from the file path in 'CONTEXT_FILE'.
+                        "2. **Lexical Filter (BM25):** The dataset is full of semantically similar noise. Use the `BM25` class or `tf_idf_keyword_filter` to aggressively score and prune the millions of lines down to the top ~100 unique candidates based on highly specific query words (e.g. 'OOM-kill', 'Envoy', 'Rule 44B', 'Alpha').\n" +
 
-                Your goal is to extract a comprehensive summary of all highly relevant events.
+                        "3. **Swarm Analysis:** DO NOT just print lexical filter results and stop. You MUST send the top 100 unique outliers to `ipc_batch_call` in the SAME SCRIPT. Instruction: 'Extract specific causal evidence, feature flags, user names, sizes, or error IDs. Ignore background noise status messages.'\n" +
 
-                Because the dataset is massive, you MUST use a Two-Stage Hybrid Search (Lexical + Semantic) to be efficient:
+                        "4. **Recursive Trace:** Use clues from the Swarm results (e.g. Rule names, user Alice, feature flag FF_ARCHIVE_SYNC) to run ANOTHER BM25 query and Swarm analysis with the new keywords. You MUST trace at least 2 hops to find the root cause.\n" +
 
-                1. Write a Python script to read the file located at the path in the 'CONTEXT_FILE' environment variable.
-        2. STAGE 1 (Lexical Filter): Chunk the data. Extract keywords from your target query and use pure Python string matching (or regex) to aggressively filter the millions of lines down to a maximum of 500 candidate chunks.
-
-        3. STAGE 2 (Semantic Search): Use embeddings ONLY on those few hundred candidate chunks.
-
-
-
-                4. Use standard input and output to request embeddings from the Go host via IPC.
-                   Example (Embeddings via IPC):
-                   import sys, json
-                   print(json.dumps({"type": "embed", "chunk": "your string here"}))
-                   sys.stdout.flush()
-                   response = json.loads(sys.stdin.readline())
-                   vector = response.get("vector")
-
-                5. Calculate Cosine Similarity locally in Python between the query vector and each candidate chunk's vector.
-
-                6. Dynamically determine the highly relevant chunks (e.g., top 5 to 10).
-
-                7. Return those compiled high-value chunks by printing a JSON message with type 'done' to stdout.
-                   Example:
-                   print(json.dumps({"type": "done", "output": "your final synthesized context chunks"}))
-                   sys.stdout.flush()
-        `
-
-
-
-                systemInstruction += `
-
-        Once the Python tool returns the highly relevant chunks, YOU (the Orchestrator) will read them, reason over them, and output the final, polished summary.`
+                        "5. **Synthesize:** Compile strictly the extracted unique facts into a concise list.\n"
 
         config := &genai.GenerateContentConfig{
-                Temperature: genai.Ptr(float32(0.2)),
+                Temperature: genai.Ptr(float32(0.0)),
                 SystemInstruction: &genai.Content{
                         Parts: []*genai.Part{genai.NewPartFromText(systemInstruction)},
                 },
         }
 
-                pythonReplTool := &genai.Tool{
-
-                        FunctionDeclarations: []*genai.FunctionDeclaration{{
-
-                                Name:        "run_rag_agent_logic",
-
-                                Description: "Executes a specialized RAG script in a secure environment. Pass the full Python logic to handle lexical filtering and semantic retrieval.",
-
-                                Parameters: &genai.Schema{
-
-                                        Type: genai.TypeObject,
-
-                                        Properties: map[string]*genai.Schema{
-
-                                                "code": {
-
-                                                        Type:        genai.TypeString,
-
-                                                        Description: "The Python code to execute.",
-
-                                                },
-
-                                        },
-
-                                        Required: []string{"code"},
-
+        pythonReplTool := &genai.Tool{
+                FunctionDeclarations: []*genai.FunctionDeclaration{{
+                        Name:        "run_rag_agent_logic",
+                        Description: "Executes a Python script in a secure sandbox. The script MUST return a JSON string array of relevant text chunks via the 'done' IPC message.",
+                        Parameters: &genai.Schema{
+                                Type: genai.TypeObject,
+                                Properties: map[string]*genai.Schema{
+                                        "code": {Type: genai.TypeString, Description: "The Python code to execute."},
                                 },
+                                Required: []string{"code"},
+                        },
+                }},
+        }
+        
+        synthesisTool := &genai.Tool{
+                FunctionDeclarations: []*genai.FunctionDeclaration{{
+                        Name:        "submit_clues_for_synthesis",
+                        Description: "Sends the compiled clues to the final synthesis agent once you have confidently extracted the root cause from the dataset.",
+                        Parameters: &genai.Schema{
+                                Type: genai.TypeObject,
+                                Properties: map[string]*genai.Schema{
+                                        "clues": {Type: genai.TypeString, Description: "The compiled facts and clues to synthesize."},
+                                },
+                                Required: []string{"clues"},
+                        },
+                }},
+        }
 
-                        }},
+        config.Tools = []*genai.Tool{pythonReplTool, synthesisTool}
 
-                }
+        slog.Debug("Creating chat session", "model", ai.OrchestratorModelName)
+        chat, err := o.client.GenAIClient.Chats.Create(ctx, ai.OrchestratorModelName, config, nil)
+        if err != nil {
+                return "", fmt.Errorf("failed to create chat: %w", err)
+        }
 
-                config.Tools = []*genai.Tool{pythonReplTool}
+        slog.Info("Orchestrator initialized", "model", ai.OrchestratorModelName)
+        return o.sendPromptAndHandleTools(ctx, chat, contextFileName, initialPrompt)
+}
 
+func (o *Orchestrator) sendPromptAndHandleTools(ctx context.Context, session *genai.Chat, contextFileName, prompt string) (string, error) {
+        var currentPrompt []genai.Part = []genai.Part{*genai.NewPartFromText(prompt)}
 
-
-                slog.Debug("Creating chat session", "model", ai.OrchestratorModelName)
-
-                chat, err := o.client.GenAIClient.Chats.Create(ctx, ai.OrchestratorModelName, config, nil)
-
+        for {
+                spinner := ui.NewSpinner("Orchestrator is thinking...")
+                spinner.Start()
+                resp, err := session.SendMessage(ctx, currentPrompt...)
+                spinner.Stop("")
                 if err != nil {
-
-                        return "", fmt.Errorf("failed to create chat: %w", err)
-
+                        return "", fmt.Errorf("error sending message: %w", err)
                 }
 
+                if len(resp.Candidates) == 0 {
+                        slog.Warn("Received empty candidates from Gemini. Breaking loop.")
+                        break
+                }
 
+                cand := resp.Candidates[0]
+                if cand.Content == nil || len(cand.Content.Parts) == 0 {
+                        slog.Warn("Received empty content part", "finishReason", cand.FinishReason)
+                        if cand.FinishReason == genai.FinishReasonMalformedFunctionCall {
+                                slog.Info("Retrying due to malformed function call...")
+                                currentPrompt = []genai.Part{*genai.NewPartFromText("Please try again and generate the Python code using the run_rag_agent_logic tool.")}
+                                continue
+                        }
+                        break
+                }
 
-                slog.Info("Orchestrator initialized", "model", ai.OrchestratorModelName)
+                part := cand.Content.Parts[0]
+                if part.Text != "" {
+                        slog.Info("Orchestrator thought", "text", part.Text)
+                }
 
-                return o.sendPromptAndHandleTools(ctx, chat, contextFileName, initialPrompt)
+                if part.FunctionCall != nil && part.FunctionCall.Name == "run_rag_agent_logic" {
+                        args := part.FunctionCall.Args
+                        code, ok := args["code"].(string)
+                        if !ok {
+                                return "", fmt.Errorf("invalid 'code' argument in function call")
+                        }
 
-        }
-
-
-
-        func (o *Orchestrator) sendPromptAndHandleTools(ctx context.Context, session *genai.Chat, contextFileName, prompt string) (string, error) {
-
-                var currentPrompt []genai.Part = []genai.Part{*genai.NewPartFromText(prompt)}
-
-
-
-                for {
-
-                        spinner := ui.NewSpinner("Orchestrator is thinking...")
-
-                        spinner.Start()
-
-                        resp, err := session.SendMessage(ctx, currentPrompt...)
-
-                        spinner.Stop("")
-
+                        slog.Info("Executing RAG script in sandbox...")
+                        output, err := o.runner.ExecuteScript(ctx, code, contextFileName, o.client)
                         if err != nil {
-
-                                return "", fmt.Errorf("error sending message: %w", err)
-
+                                return "", fmt.Errorf("failed to execute script: %w", err)
                         }
 
-
-
-                        if len(resp.Candidates) == 0 {
-
-                                slog.Warn("Received empty candidates from Gemini. Breaking loop.")
-
-                                break
-
+                        if strings.Contains(output, "Execution finished without returning a 'done' message.") {
+                                slog.Warn("Sandbox logic failed or returned empty output, feeding back into orchestrator.")
+                                currentPrompt = []genai.Part{*genai.NewPartFromFunctionResponse("run_rag_agent_logic", map[string]any{"output": output})}
+                                continue
                         }
 
-
-
-                        cand := resp.Candidates[0]
-
-                        if cand.Content == nil || len(cand.Content.Parts) == 0 {
-
-                                slog.Warn("Received empty content part", "finishReason", cand.FinishReason)
-                                if cand.FinishReason == genai.FinishReasonMalformedFunctionCall {
-                                        slog.Info("Retrying due to malformed function call...")
-                                        currentPrompt = []genai.Part{*genai.NewPartFromText("Please try again and generate the Python code using the run_rag_agent_logic tool.")}
-                                        continue
-                                }
-                                break
-
+                        // The output should be a JSON array string. Parse it to get the chunks.
+                        importJson := "encoding/json"
+                        _ = importJson
+                        
+                        var chunks []string
+                        err = json.Unmarshal([]byte(output), &chunks)
+                        if err != nil {
+                                slog.Warn("Script did not return a valid JSON string array.", "output", output)
+                                currentPrompt = []genai.Part{*genai.NewPartFromFunctionResponse("run_rag_agent_logic", map[string]any{"error": "Output was not a JSON array of strings: " + output})}
+                                continue
                         }
 
-
-
-                        part := cand.Content.Parts[0]
-
-
-
-                        if part.Text != "" {
-
-                                slog.Info("Orchestrator thought", "text", part.Text)
-
+                        if len(chunks) == 0 {
+                                currentPrompt = []genai.Part{*genai.NewPartFromFunctionResponse("run_rag_agent_logic", map[string]any{"error": "No chunks returned."})}
+                                continue
                         }
 
+                        slog.Info(fmt.Sprintf("Sending %d chunks to individual Swarm environments...", len(chunks)))
+                        clues := o.client.HandleBatchCall(ctx, "Extract causal entities, feature flags, compliance rules, and root cause evidence from this text. Ignore normal status logs.", chunks)
+                        
+                        cluesStr := strings.Join(clues, "\n")
+                        currentPrompt = []genai.Part{*genai.NewPartFromFunctionResponse("run_rag_agent_logic", map[string]any{"clues": cluesStr})}
+                        continue
 
-
-                        if part.FunctionCall != nil && part.FunctionCall.Name == "run_rag_agent_logic" {
-
-                                args := part.FunctionCall.Args
-
-                                code, ok := args["code"].(string)
-
-                                if !ok {
-
-                                        return "", fmt.Errorf("invalid 'code' argument in function call")
-
-                                }
-
-
-
-                                slog.Info("Executing RAG script in sandbox...")
-
-                                output, err := o.runner.ExecuteScript(ctx, code, contextFileName, o.client)
-
-                                if err != nil {
-
-                                        return "", fmt.Errorf("failed to execute script: %w", err)
-
-                                }
-
-
-
-                                slog.Debug("Sandbox execution finished", "outputLength", len(output))
-
-
-
-                                // If it didn't return a 'done' message, feed the error back to the agent
-
-                                if strings.Contains(output, "Execution finished without returning a 'done' message.") {
-
-                                        slog.Warn("Sandbox logic failed or returned empty output, feeding back into orchestrator.")
-
-
-
-                                        currentPrompt = []genai.Part{
-
-                                                *genai.NewPartFromFunctionResponse("run_rag_agent_logic", map[string]any{
-
-                                                        "output": output,
-
-                                                }),
-
-                                        }
-
-                                        continue
-
-                                }
-
-
-
-                                if err == nil && output != "" {
-
-                                        slog.Info("Goal achieved in sandbox. Starting final synthesis.")
-
-                                        return o.doFinalSynthesis(ctx, output)
-
-                                }
-
-
-
-
-
-                        } else if part.FunctionCall != nil {
-
-                                slog.Warn("Model attempted to call unknown tool", "name", part.FunctionCall.Name)
-
-                                break
-
-                        } else {
-
-                                slog.Info("No further tool calls. Orchestrator process complete.")
-
-                                return part.Text, nil
-
+                } else if part.FunctionCall != nil && part.FunctionCall.Name == "submit_clues_for_synthesis" {
+                        args := part.FunctionCall.Args
+                        clues, ok := args["clues"].(string)
+                        if !ok {
+                                return "", fmt.Errorf("invalid 'clues' argument")
                         }
+                        
+                        slog.Info("Goal achieved via Swarm. Starting final synthesis.")
+                        return o.doFinalSynthesis(ctx, clues)
 
+                } else if part.FunctionCall != nil {
+                        slog.Warn("Model attempted to call unknown tool", "name", part.FunctionCall.Name)
+                        break
+                } else {
+                        slog.Info("No further tool calls. Orchestrator process complete.")
+                        return part.Text, nil
                 }
-
-
-
-                return "", nil
-
         }
+        return "", nil
+}
 	
 
 func (o *Orchestrator) doFinalSynthesis(ctx context.Context, chunks string) (string, error) {

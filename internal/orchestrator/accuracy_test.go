@@ -19,8 +19,8 @@ func setupClient(t *testing.T) *ai.Client {
 	}
 
 	ctx := context.Background()
-	// Use global as specified in the README
-	client, err := ai.NewClient(ctx, projectID, "global")
+	// Use us-central1 for consistency and tool support
+	client, err := ai.NewClient(ctx, projectID, "us-central1")
 	if err != nil {
 		t.Fatalf("Failed to initialize ai client: %v", err)
 	}
@@ -29,8 +29,23 @@ func setupClient(t *testing.T) *ai.Client {
 
 func checkAccuracy(t *testing.T, output string) {
 	output = strings.ToLower(output)
-	// Engineering Scenario keywords
-	expectedKeywords := []string{"x-trace", "omega", "oom-kill", "envoy", "memory leak"}
+	// Engineering Scenario keywords (expanded for deeper multi-hop reasoning)
+	expectedKeywords := []string{
+		"x-trace", 
+		"omega", 
+		"oom-kill", 
+		"envoy", 
+		"memory leak", 
+		"rule 44b",
+		"alpha",
+		"ff_archive_sync",
+		"alice",
+		"payload",
+		"2mb",
+		"cgroup",
+		"istio-proxy",
+		"cron-beta",
+	}
 	
 	found := 0
 	for _, kw := range expectedKeywords {
@@ -39,8 +54,10 @@ func checkAccuracy(t *testing.T, output string) {
 		}
 	}
 
-	if found < 3 {
-		t.Errorf("Accuracy failed: Expected at least 3 keywords from %v, but only found %d in output:\n%s", expectedKeywords, found, output)
+	// We have 14 possible keywords. A highly accurate model traversing the full chain
+	// should find at least 10 of these concepts.
+	if found < 10 {
+		t.Errorf("Accuracy failed: Expected at least 10 keywords from %v, but only found %d in output:\n%s", expectedKeywords, found, output)
 	} else {
 		t.Logf("Accuracy passed: Found %d keywords in output.", found)
 	}
@@ -52,7 +69,7 @@ func TestAccuracy_PureFlash(t *testing.T) {
 	defer client.Close()
 
 	ctx := context.Background()
-	dataset := data.GenerateUltraMassiveContext(80000)
+	dataset := data.GenerateUltraMassiveContext(300000)
 	prompt := "Extract a summary of the root cause of the Service Omega outage.\n\nDATA:\n" + dataset
 
 	content := &genai.Content{
@@ -87,7 +104,7 @@ func TestAccuracy_PurePro(t *testing.T) {
 	defer client.Close()
 
 	ctx := context.Background()
-	dataset := data.GenerateUltraMassiveContext(80000)
+	dataset := data.GenerateUltraMassiveContext(300000)
 	prompt := "Extract a summary of the root cause of the Service Omega outage.\n\nDATA:\n" + dataset
 
 	content := &genai.Content{
@@ -122,7 +139,7 @@ func TestAccuracy_RAGOrchestrator(t *testing.T) {
 	client := setupClient(t)
 	defer client.Close()
 
-	dataset := data.GenerateUltraMassiveContext(80000)
+	dataset := data.GenerateUltraMassiveContext(300000)
 	tmpFile, cleanup, err := data.CreateContextFile(dataset)
 	if err != nil {
 		t.Fatalf("Failed to create context file: %v", err)
@@ -130,11 +147,11 @@ func TestAccuracy_RAGOrchestrator(t *testing.T) {
 	defer cleanup()
 	
 	// Ensure python path is correct for the sandbox runner.
-	        // Assuming we are running inside the /internal/orchestrator directory,
-	        // we might need to set up the python runner to use the venv in project root.
-	        runner := python.NewRunner()
-	        orch := New(client, runner)
-	        prompt := `Begin your task. Write a Python script to search the file at CONTEXT_FILE using lexical search to extract the chunks containing ANY of the keywords: "Service Omega" OR "Envoy" OR "X-Trace" OR "OOM-kill". Then use semantic search embeddings via IPC to find the root cause of the OOM kills in Service Omega, including the triggering service and proxy issue.`	
+        // Assuming we are running inside the /internal/orchestrator directory,
+        // we might need to set up the python runner to use the venv in project root.
+        runner := python.NewRunner()
+        orch := New(client, runner)
+        prompt := `Begin your task. Write a Python script to search the file at CONTEXT_FILE using lexical search to extract the initial chunks containing keywords related to the Service Omega outage (e.g. "Omega", "OOM-kill", "cron-beta"). Then, iteratively use semantic search embeddings via IPC to trace the root cause back to the original feature flag, payload changes, and compliance rules that triggered the envoy proxy memory leak.`	
         t.Log("Starting Orchestrator RAG approach...")
         finalOutput, err := orch.Start(context.Background(), tmpFile, prompt)
         if err != nil {

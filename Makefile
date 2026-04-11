@@ -1,4 +1,4 @@
-.PHONY: all build run test bench clean docker-build
+.PHONY: all build run test bench accuracy clean
 
 APP_NAME = code-sandbox
 MAIN_PATH = ./cmd/sandbox/main.go
@@ -25,7 +25,7 @@ clean:
 	@echo "==> Cleaning up..."
 	rm -f $(APP_NAME)
 
-docker-build:
-	@echo "==> Building Docker image..."
-	docker-compose build
+accuracy:
+	@echo "==> Running Accuracy Benchmarks"
+	go test -v ./internal/orchestrator -run TestIntegratedEvaluation
 
