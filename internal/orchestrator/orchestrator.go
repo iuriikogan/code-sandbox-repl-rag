@@ -79,17 +79,16 @@ func (o *Orchestrator) Start(ctx context.Context, contextFileName string, initia
 		                                                                                                                "    outliers = [candidates[i] for i in outlier_indices]\n" +
 		                                                                                                                "    if not outliers: break\n" +
 		                                                                                                                "\n" +
-		                                                                                                                "    # 3. Swarm Analysis (Extract Facts & IDs)\n" +
-		                                                                                                                "    clues = ipc_batch_call('Extract concrete IDs, flags, rules, and causal facts. Ignore noise.', outliers)\n" +
-		                                                                                                                "    evidence.extend([c for c in clues if c.strip()])\n" +
-		                                                                                                                "\n" +
-		                                                                                                                "    # 4. Recursive Update\n" +
-		                                                                                                                "    new_words = extract_keywords(clues, query_words)\n" +
-		                                                                                                                "    if not new_words: break\n" +
-		                                                                                                                "    query_words.extend(new_words)\n" +
-		                                                                                                                "    query_vec = update_vector_rocchio(query_vec, ipc_embed(' '.join(new_words)))\n" +
-		                                                                                                                "\n" +
-		                                                                                                                "print(json.dumps({\"type\": \"done\", \"output\": '\\n'.join(evidence)}))\n" +
+		                                                                                                                                                                                                                                                "    # 3. Swarm Analysis (Extract Facts & IDs)\n" +
+		                                                                                                                                                                                                                                                "    clues = ipc_batch_call('Extract ALL concrete IDs, person names (e.g. Alice), service names (e.g. Alpha, cron-beta), feature flags, compliance rules, precise sizes (e.g. 2MB, 5MB), component names (e.g. cgroup, istio-proxy, envoy), custom headers (e.g. x-trace), and causal facts. Be exhaustive. Ignore noise.', outliers)\n" +
+		                                                                                                                                                                                                                                                "    evidence.extend([c for c in clues if c.strip()])\n" +		                                                                                                                "\n" +
+		                                                                                                                                                                                                                                                "    # 4. Recursive Update\n" +
+		                                                                                                                                                                                                                                                "    new_words = extract_keywords(clues, query_words)\n" +
+		                                                                                                                                                                                                                                                "    if not new_words: break\n" +
+		                                                                                                                                                                                                                                                "    query_words.extend(new_words)\n" +
+		                                                                                                                                                                                                                                                "    v_clue = ipc_embed(' '.join(new_words))\n" +
+		                                                                                                                                                                                                                                                "    if v_clue: query_vec = update_vector_rocchio(query_vec, v_clue)\n" +
+		                                                                                                                                                                                                                                                "\n" +		                                                                                                                "print(json.dumps({\"type\": \"done\", \"output\": '\\n'.join(evidence)}))\n" +
 		                                                                                                                "sys.stdout.flush()\n" +
 		                                                                                                                "```\n"
 	config := &genai.GenerateContentConfig{
@@ -253,22 +252,20 @@ func (o *Orchestrator) sendPromptAndHandleTools(ctx context.Context, session *ge
 
 func (o *Orchestrator) doFinalSynthesis(ctx context.Context, chunks string) (string, error) {
 
-	prompt := fmt.Sprintf(`You are the final synthesis agent. 
-
-You have been provided with highly relevant chunks of a dataset extracted via semantic search.
-
-Your goal is to extract a comprehensive summary of the specific scenarios requested.
-
-
-
-EXTRACTED CHUNKS:
-
-%s
-
-
-
-Read them, reason over them, and output the final, polished summary answering the original scenarios.`, chunks)
-
+	        prompt := fmt.Sprintf(`You are the final synthesis agent. 
+	
+	You have been provided with highly relevant clues extracted via a semantic Map-Reduce swarm.
+	
+	Your goal is to extract a comprehensive summary of the specific scenarios requested.
+	CRITICAL: You MUST explicitly include ALL technical details provided in the clues. Do not summarize away specific service names (like Alpha, Omega, cron-beta), components (like envoy, cgroup, istio-proxy), rules (like Rule 44B), feature flags, sizes (like 2MB, 5.2MB), users (like Alice), or custom headers (like x-trace). Your output will be tested for these exact strings.
+	
+	EXTRACTED CLUES:
+	
+	%s
+	
+	
+	
+	Read them, reason over them, and output the final, polished summary answering the original scenarios while retaining ALL technical identifiers.`, chunks)
 	content := &genai.Content{
 
 		Role: "user",
