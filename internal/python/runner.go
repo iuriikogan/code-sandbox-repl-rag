@@ -117,6 +117,11 @@ class BM25:
                 score += numerator / denominator
             scores.append(score)
         return scores
+
+def extract_keywords(text_list, exclude_words):
+    words = set(re.findall(r'\b[A-Za-z0-9_-]{4,}\b', " ".join(text_list).lower()))
+    exclude = set(w.lower() for w in exclude_words)
+    return list(words - exclude)
 `
 
 // ExecuteScript runs a Python script natively and handles IPC via stdout/stdin.
