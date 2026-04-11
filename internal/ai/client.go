@@ -15,70 +15,50 @@ import (
 )
 
 const (
-	OrchestratorModelName = "gemini-3.1-flash-lite-preview"
-
-	WorkerModelName = "gemini-2.5-flash"
-
+	WorkerModelName         = "gemini-2.5-flash"
 	FinalSynthesisModelName = "gemini-2.5-pro"
-
-	EmbeddingModelName = "text-embedding-004" // Default for Vertex
-
+	EmbeddingModelName      = "text-embedding-004" // Default for Vertex
 )
 
 // Client wraps the standard GenAI client.
-
 type Client struct {
-	GenAIClient *genai.Client
-
-	EmbedModel string
+	GenAIClient           *genai.Client
+	EmbedModel            string
+	OrchestratorModelName string
 }
 
 // NewClient initializes a new AI client.
-
 func NewClient(ctx context.Context, projectID, location string) (*Client, error) {
-
 	var client *genai.Client
-
 	var err error
-
 	embedModel := EmbeddingModelName
+	orchestratorModel := "gemini-2.5-flash"
 
 	apiKey := os.Getenv("GEMINI_API_KEY")
-
 	if apiKey != "" {
-
 		slog.Info("Using Gemini Developer API (AI Studio) due to GEMINI_API_KEY")
-
 		client, err = genai.NewClient(ctx, &genai.ClientConfig{
-
 			APIKey: apiKey,
 		})
-
-		embedModel = "gemini-embedding-001"
-
+		embedModel = "text-embedding-004" // Use standard text-embedding-004 for AI Studio
+		orchestratorModel = "gemini-3.1-flash-lite-preview"
 	} else {
-
 		slog.Info("Using Vertex AI Backend")
-
 		client, err = genai.NewClient(ctx, &genai.ClientConfig{
-
-			Backend: genai.BackendVertexAI,
-
-			Project: projectID,
-
+			Backend:  genai.BackendVertexAI,
+			Project:  projectID,
 			Location: location,
 		})
-
 	}
 
 	if err != nil {
-
 		return nil, err
-
 	}
-
-	return &Client{GenAIClient: client, EmbedModel: embedModel}, nil
-
+	return &Client{
+		GenAIClient:           client,
+		EmbedModel:            embedModel,
+		OrchestratorModelName: orchestratorModel,
+	}, nil
 }
 
 // Close closes the underlying client.

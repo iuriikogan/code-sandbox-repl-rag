@@ -74,7 +74,7 @@ func BenchmarkCost_StandardRouting_Flash(b *testing.B) {
 }
 
 func BenchmarkCost_RAGRouting(b *testing.B) {
-	orchestratorPrice := getModelPrice(ai.OrchestratorModelName)
+	orchestratorPrice := getModelPrice("gemini-2.5-flash")
 	synthesisPrice := getModelPrice(ai.FinalSynthesisModelName)
 
 	for _, size := range contextSizes {

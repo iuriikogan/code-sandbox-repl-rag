@@ -12,10 +12,10 @@ import (
 
 // IPCHandler defines the interface for handling IPC calls from the Python script.
 type IPCHandler interface {
-	HandleEmbed(ctx context.Context, chunk string) []float32
-	HandleBatchEmbed(ctx context.Context, chunks []string) [][]float32
+        HandleEmbed(ctx context.Context, chunk string) []float32
+        HandleBatchEmbed(ctx context.Context, chunks []string) [][]float32
+        HandleBatchCall(ctx context.Context, instruction string, chunks []string) []string
 }
-
 // Runner defines the interface for executing Python scripts.
 type Runner interface {
 	ExecuteScript(ctx context.Context, code string, contextFileName string, handler IPCHandler) (string, error)
@@ -37,10 +37,17 @@ func getPythonCmd() string {
 }
 
 type ipcMessage struct {
-	Type   string   `json:"type"`
-	Chunk  string   `json:"chunk,omitempty"`
-	Chunks []string `json:"chunks,omitempty"`
-	Output string   `json:"output,omitempty"`
+
+        Type        string   `json:"type"`
+
+        Instruction string   `json:"instruction,omitempty"`
+
+        Chunk       string   `json:"chunk,omitempty"`
+
+        Chunks      []string `json:"chunks,omitempty"`
+
+        Output      string   `json:"output,omitempty"`
+
 }
 
 type ipcEmbedResponse struct {
@@ -197,16 +204,23 @@ func (r *LocalRunner) ExecuteScript(ctx context.Context, code string, contextFil
 
 					fmt.Fprintf(stdin, "%s\n", respBytes)
 
-				case "batch_embed":
-
-					vectors := handler.HandleBatchEmbed(ctx, msg.Chunks)
-
-					respBytes, _ := json.Marshal(map[string]any{"vectors": vectors})
-
-					fmt.Fprintf(stdin, "%s\n", respBytes)
-
-				case "done":
-
+				                                                                        case "batch_embed":
+				
+				                                                                                vectors := handler.HandleBatchEmbed(ctx, msg.Chunks)
+				
+				                                                                                respBytes, _ := json.Marshal(map[string]any{"vectors": vectors})
+				
+				                                                                                fmt.Fprintf(stdin, "%s\n", respBytes)
+				
+				                                                                        case "batch_call":
+				
+				                                                                                results := handler.HandleBatchCall(ctx, msg.Instruction, msg.Chunks)
+				
+				                                                                                respBytes, _ := json.Marshal(map[string]any{"results": results})
+				
+				                                                                                fmt.Fprintf(stdin, "%s\n", respBytes)
+				
+				                                                                        case "done":
 					doneOutput = msg.Output
 
 					doneReceived = true

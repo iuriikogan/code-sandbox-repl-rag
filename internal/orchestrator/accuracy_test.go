@@ -85,8 +85,8 @@ func TestAccuracy_PureFlash(t *testing.T) {
 		Temperature: genai.Ptr(float32(0.2)),
 	}
 
-	t.Log("Sending to gemini-2.5-flash...")
-	resp, err := client.GenAIClient.Models.GenerateContent(ctx, ai.OrchestratorModelName, []*genai.Content{content}, config)
+	t.Logf("Sending to %s...", client.OrchestratorModelName)
+	resp, err := client.GenAIClient.Models.GenerateContent(ctx, client.OrchestratorModelName, []*genai.Content{content}, config)
 	if err != nil {
 		t.Fatalf("Generation failed: %v", err)
 	}
