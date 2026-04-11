@@ -45,8 +45,9 @@
 ### Environment Variables
 You must set the following environment variable before running the application:
 - `GOOGLE_CLOUD_PROJECT`: Your Google Cloud Project ID.
+- `GOOGLE_CLOUD_LOCATION`: (Optional) Target Vertex AI region. Defaults to `us-central1`.
 
-Note: The application uses the **`us-central1`** Vertex AI endpoint exclusively, as it is the target region for Agent Engine features.
+Note: The application defaults to the **`us-central1`** Vertex AI endpoint, as it is the primary target region for Agent Engine features, but can be overridden.
 
 ## Setup & Running
 

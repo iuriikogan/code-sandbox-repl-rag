@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"google.golang.org/genai"
 	"github.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
 	"github.com/iuriikogan/code-sandbox-repl-rag/internal/data"
 	"github.com/iuriikogan/code-sandbox-repl-rag/internal/python"
+	"google.golang.org/genai"
 )
 
 func setupClient(t *testing.T) *ai.Client {
@@ -19,8 +19,12 @@ func setupClient(t *testing.T) *ai.Client {
 	}
 
 	ctx := context.Background()
-	// Use us-central1 for consistency and tool support
-	client, err := ai.NewClient(ctx, projectID, "us-central1")
+	// Use us-central1 for consistency and tool support, but allow override
+	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
+	if location == "" {
+		location = "us-central1"
+	}
+	client, err := ai.NewClient(ctx, projectID, location)
 	if err != nil {
 		t.Fatalf("Failed to initialize ai client: %v", err)
 	}
@@ -31,11 +35,11 @@ func checkAccuracy(t *testing.T, output string) {
 	output = strings.ToLower(output)
 	// Engineering Scenario keywords (expanded for deeper multi-hop reasoning)
 	expectedKeywords := []string{
-		"x-trace", 
-		"omega", 
-		"oom-kill", 
-		"envoy", 
-		"memory leak", 
+		"x-trace",
+		"omega",
+		"oom-kill",
+		"envoy",
+		"memory leak",
 		"rule 44b",
 		"alpha",
 		"ff_archive_sync",
@@ -46,7 +50,7 @@ func checkAccuracy(t *testing.T, output string) {
 		"istio-proxy",
 		"cron-beta",
 	}
-	
+
 	found := 0
 	for _, kw := range expectedKeywords {
 		if strings.Contains(output, kw) {
@@ -90,13 +94,14 @@ func TestAccuracy_PureFlash(t *testing.T) {
 	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil || len(resp.Candidates[0].Content.Parts) == 0 {
 		t.Fatalf("Empty response")
 	}
-	
-	        part := resp.Candidates[0].Content.Parts[0]
-	        if part.Text != "" {
-	                checkAccuracy(t, part.Text)
-	        } else {
-	                t.Fatalf("Response is not text")
-	        }}
+
+	part := resp.Candidates[0].Content.Parts[0]
+	if part.Text != "" {
+		checkAccuracy(t, part.Text)
+	} else {
+		t.Fatalf("Response is not text")
+	}
+}
 
 // TestAccuracy_PurePro tests the accuracy of gemini-2.5-pro with a massive context.
 func TestAccuracy_PurePro(t *testing.T) {
@@ -125,7 +130,7 @@ func TestAccuracy_PurePro(t *testing.T) {
 	if len(resp.Candidates) == 0 || resp.Candidates[0].Content == nil || len(resp.Candidates[0].Content.Parts) == 0 {
 		t.Fatalf("Empty response")
 	}
-	
+
 	part := resp.Candidates[0].Content.Parts[0]
 	if part.Text != "" {
 		checkAccuracy(t, part.Text)
@@ -145,17 +150,18 @@ func TestAccuracy_RAGOrchestrator(t *testing.T) {
 		t.Fatalf("Failed to create context file: %v", err)
 	}
 	defer cleanup()
-	
+
 	// Ensure python path is correct for the sandbox runner.
-        // Assuming we are running inside the /internal/orchestrator directory,
-        // we might need to set up the python runner to use the venv in project root.
-        runner := python.NewRunner()
-        orch := New(client, runner)
-        prompt := `Begin your task. Write a Python script to search the file at CONTEXT_FILE using lexical search to extract the initial chunks containing keywords related to the Service Omega outage (e.g. "Omega", "OOM-kill", "cron-beta"). Then, iteratively use semantic search embeddings via IPC to trace the root cause back to the original feature flag, payload changes, and compliance rules that triggered the envoy proxy memory leak.`	
-        t.Log("Starting Orchestrator RAG approach...")
-        finalOutput, err := orch.Start(context.Background(), tmpFile, prompt)
-        if err != nil {
-                t.Fatalf("Orchestrator failed: %v", err)
-        }
-        
-        checkAccuracy(t, finalOutput)}
+	// Assuming we are running inside the /internal/orchestrator directory,
+	// we might need to set up the python runner to use the venv in project root.
+	runner := python.NewRunner()
+	orch := New(client, runner)
+	prompt := `Begin your task. Write a Python script to search the file at CONTEXT_FILE using lexical search to extract the initial chunks containing keywords related to the Service Omega outage (e.g. "Omega", "OOM-kill", "cron-beta"). Then, iteratively use semantic search embeddings via IPC to trace the root cause back to the original feature flag, payload changes, and compliance rules that triggered the envoy proxy memory leak.`
+	t.Log("Starting Orchestrator RAG approach...")
+	finalOutput, err := orch.Start(context.Background(), tmpFile, prompt)
+	if err != nil {
+		t.Fatalf("Orchestrator failed: %v", err)
+	}
+
+	checkAccuracy(t, finalOutput)
+}

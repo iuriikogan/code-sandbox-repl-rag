@@ -12,13 +12,13 @@ import (
 
 // IPCHandler defines the interface for handling IPC calls from the Python script.
 type IPCHandler interface {
-        HandleEmbed(ctx context.Context, chunk string) []float32
-        HandleBatchEmbed(ctx context.Context, chunks []string) [][]float32
+	HandleEmbed(ctx context.Context, chunk string) []float32
+	HandleBatchEmbed(ctx context.Context, chunks []string) [][]float32
 }
 
 // Runner defines the interface for executing Python scripts.
 type Runner interface {
-        ExecuteScript(ctx context.Context, code string, contextFileName string, handler IPCHandler) (string, error)
+	ExecuteScript(ctx context.Context, code string, contextFileName string, handler IPCHandler) (string, error)
 }
 
 // LocalRunner provides methods to execute Python scripts locally with IPC loops.
@@ -26,25 +26,25 @@ type LocalRunner struct{}
 
 // NewRunner creates a new local Python runner.
 func NewRunner() Runner {
-        return &LocalRunner{}
+	return &LocalRunner{}
 }
 
 func getPythonCmd() string {
-        if _, err := exec.LookPath("python3"); err == nil {
-                return "python3"
-        }
-        return "python"
+	if _, err := exec.LookPath("python3"); err == nil {
+		return "python3"
+	}
+	return "python"
 }
 
 type ipcMessage struct {
-        Type        string   `json:"type"`
-        Chunk       string   `json:"chunk,omitempty"`
-        Chunks      []string `json:"chunks,omitempty"`
-        Output      string   `json:"output,omitempty"`
+	Type   string   `json:"type"`
+	Chunk  string   `json:"chunk,omitempty"`
+	Chunks []string `json:"chunks,omitempty"`
+	Output string   `json:"output,omitempty"`
 }
 
 type ipcEmbedResponse struct {
-        Vector []float32 `json:"vector"`
+	Vector []float32 `json:"vector"`
 }
 
 const pythonHelpers = `
@@ -114,154 +114,144 @@ class BM25:
 
 // ExecuteScript runs a Python script natively and handles IPC via stdout/stdin.
 func (r *LocalRunner) ExecuteScript(ctx context.Context, code string, contextFileName string, handler IPCHandler) (string, error) {
-        tmpFile, err := os.CreateTemp("", "script-*.py")
-        if err != nil {
-                return "", err
-        }
-        defer os.Remove(tmpFile.Name())
+	tmpFile, err := os.CreateTemp("", "script-*.py")
+	if err != nil {
+		return "", err
+	}
+	defer os.Remove(tmpFile.Name())
 
-        fullCode := pythonHelpers + "\n" + code
-        if _, err := tmpFile.WriteString(fullCode); err != nil {
-                return "", err
-        }
-        tmpFile.Close()
+	fullCode := pythonHelpers + "\n" + code
+	if _, err := tmpFile.WriteString(fullCode); err != nil {
+		return "", err
+	}
+	tmpFile.Close()
 
-        cmd := exec.CommandContext(ctx, getPythonCmd(), tmpFile.Name())
-        cmd.Env = append(os.Environ(), "CONTEXT_FILE="+contextFileName)
+	cmd := exec.CommandContext(ctx, getPythonCmd(), tmpFile.Name())
+	cmd.Env = append(os.Environ(), "CONTEXT_FILE="+contextFileName)
 
-        stdout, err := cmd.StdoutPipe()
-        if err != nil {
-                return "", err
-        }
-        stdin, err := cmd.StdinPipe()
-        if err != nil {
-                return "", err
-        }
-        stderr, err := cmd.StderrPipe()
-        if err != nil {
-                return "", err
-        }
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", err
+	}
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return "", err
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return "", err
+	}
 
-        if err := cmd.Start(); err != nil {
-                return "", err
-        }
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
 
-        // Capture stderr in a goroutine
-        var errBytes []byte
-        go func() {
-                buf := make([]byte, 1024)
-                for {
-                        n, err := stderr.Read(buf)
-                        if n > 0 {
-                                errBytes = append(errBytes, buf[:n]...)
-                        }
-                        if err != nil {
-                                break
-                        }
-                }
-        }()
+	// Capture stderr in a goroutine
+	var errBytes []byte
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := stderr.Read(buf)
+			if n > 0 {
+				errBytes = append(errBytes, buf[:n]...)
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
 
-                // Read output line by line natively instead of bufio.Scanner to handle massive dynamic tokens
+	// Read output line by line natively instead of bufio.Scanner to handle massive dynamic tokens
 
-                reader := bufio.NewReader(stdout)
+	reader := bufio.NewReader(stdout)
 
-        
+	var fullOutput string
 
-                var fullOutput string
+	var doneOutput string
 
-                var doneOutput string
+	var doneReceived bool
 
-                var doneReceived bool
+	for {
 
-        
+		lineBytes, err := reader.ReadBytes('\n')
 
-                for {
+		if len(lineBytes) > 0 {
 
-                        lineBytes, err := reader.ReadBytes('\n')
+			line := string(lineBytes)
 
-                        if len(lineBytes) > 0 {
+			fullOutput += line
 
-                                line := string(lineBytes)
+			var msg ipcMessage
 
-                                fullOutput += line
+			if unmarshalErr := json.Unmarshal(lineBytes, &msg); unmarshalErr == nil {
 
-        
+				switch msg.Type {
 
-                                var msg ipcMessage
+				case "embed":
 
-                                if unmarshalErr := json.Unmarshal(lineBytes, &msg); unmarshalErr == nil {
+					vector := handler.HandleEmbed(ctx, msg.Chunk)
 
-                                                                        switch msg.Type {
+					resp := ipcEmbedResponse{Vector: vector}
 
-                                                                        case "embed":
+					respBytes, _ := json.Marshal(resp)
 
-                                                                                vector := handler.HandleEmbed(ctx, msg.Chunk)
+					fmt.Fprintf(stdin, "%s\n", respBytes)
 
-                                                                                resp := ipcEmbedResponse{Vector: vector}
+				case "batch_embed":
 
-                                                                                respBytes, _ := json.Marshal(resp)
+					vectors := handler.HandleBatchEmbed(ctx, msg.Chunks)
 
-                                                                                fmt.Fprintf(stdin, "%s\n", respBytes)
+					respBytes, _ := json.Marshal(map[string]any{"vectors": vectors})
 
-                                                                        case "batch_embed":
+					fmt.Fprintf(stdin, "%s\n", respBytes)
 
-                                                                                vectors := handler.HandleBatchEmbed(ctx, msg.Chunks)
+				case "done":
 
-                                                                                respBytes, _ := json.Marshal(map[string]any{"vectors": vectors})
+					doneOutput = msg.Output
 
-                                                                                fmt.Fprintf(stdin, "%s\n", respBytes)
+					doneReceived = true
 
-                                                                        case "done":
+					break // Need to exit loop if done
 
-                                                                                doneOutput = msg.Output
+				}
 
-                                                                                doneReceived = true
+			}
 
-                                                                                break // Need to exit loop if done
+		}
 
-                                                                        }
+		if doneReceived {
 
-                                }
+			break
 
-                        }
+		}
 
-                        
+		if err != nil {
 
-                        if doneReceived {
+			break // EOF or other read error
 
-                                break
+		}
 
-                        }
-
-                        
-
-                        if err != nil {
-
-                                break // EOF or other read error
-
-                        }
-
-                }
+	}
 
 	cmd.Wait()
 
-	        if !doneReceived {
-	                resultStr := "Execution finished without returning a 'done' message.\n"
-	                if len(errBytes) > 0 {
-	                        errStr := string(errBytes)
-	                        if len(errStr) > 5000 {
-	                                errStr = errStr[:5000] + "\n...[TRUNCATED]"
-	                        }
-	                        resultStr += "Standard Error:\n" + errStr
-	                }
-	                if fullOutput != "" {
-	                        if len(fullOutput) > 10000 {
-	                                fullOutput = fullOutput[:10000] + "\n...[TRUNCATED]"
-	                        }
-	                        resultStr += "Standard Output:\n" + fullOutput
-	                }
-	                slog.Warn(resultStr)
-	                return resultStr, nil
-	        }
+	if !doneReceived {
+		resultStr := "Execution finished without returning a 'done' message.\n"
+		if len(errBytes) > 0 {
+			errStr := string(errBytes)
+			if len(errStr) > 5000 {
+				errStr = errStr[:5000] + "\n...[TRUNCATED]"
+			}
+			resultStr += "Standard Error:\n" + errStr
+		}
+		if fullOutput != "" {
+			if len(fullOutput) > 10000 {
+				fullOutput = fullOutput[:10000] + "\n...[TRUNCATED]"
+			}
+			resultStr += "Standard Output:\n" + fullOutput
+		}
+		slog.Warn(resultStr)
+		return resultStr, nil
+	}
 	return doneOutput, nil
 }

@@ -25,8 +25,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Use us-central1 as it is the only region supporting Code Execution currently
-	const location = "us-central1"
+	// Use us-central1 as it is the only region supporting Code Execution currently, but allow override
+	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
+	if location == "" {
+		location = "us-central1"
+	}
 
 	// Initialize the Vertex AI client wrapper
 	slog.Info("Initializing GenAI client...", "projectID", projectID, "location", location)
@@ -50,9 +53,9 @@ func main() {
 	spinner.Stop("✓ Dataset generated.")
 	defer cleanup()
 
-	        // Initialize the Python script runner locally with IPC
-	        slog.Info("Initializing Local IPC runner...")
-	        runner := python.NewRunner()
+	// Initialize the Python script runner locally with IPC
+	slog.Info("Initializing Local IPC runner...")
+	runner := python.NewRunner()
 	// Start the orchestration loop
 	slog.Info("Starting Orchestrator loop...")
 	orch := orchestrator.New(client, runner)
@@ -60,9 +63,9 @@ func main() {
 1. Medical: Trace the genetic link between Patient A, B, and C, and explain the acute ER admission of Patient C.
 2. Engineering: Identify the root cause of the OOM kills in Service Omega, including the triggering service and proxy issue.`
 
-	        if _, err := orch.Start(ctx, contextFilePath, prompt); err != nil {
-	                slog.Error("Orchestrator finished with error", "error", err)
-	                os.Exit(1)
-	        }
+	if _, err := orch.Start(ctx, contextFilePath, prompt); err != nil {
+		slog.Error("Orchestrator finished with error", "error", err)
+		os.Exit(1)
+	}
 	slog.Info("Orchestrator finished successfully.")
 }
