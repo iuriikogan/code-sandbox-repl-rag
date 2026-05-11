@@ -78,7 +78,8 @@ os.environ['PROJECT_ID'] = "%s"
 os.environ['LOCATION'] = "%s"
 import vertexai
 vertexai.init(project="%s", location="%s")
-%s`, r.projectID, r.location, r.projectID, r.location, code)
+%s
+%s`, r.projectID, r.location, r.projectID, r.location, HelperCode, code)
 
 	// 5. Execute Code
 	return r.executeCode(ctx, sandboxID, injectedCode, contextContent)

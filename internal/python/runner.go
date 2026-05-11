@@ -47,7 +47,7 @@ func (r *LocalRunner) ExecuteScript(ctx context.Context, code string, contextFil
 	}
 	defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.WriteString(code); err != nil {
+	if _, err := tmpFile.WriteString(HelperCode + "\n\n" + code); err != nil {
 		return "", err
 	}
 	tmpFile.Close()

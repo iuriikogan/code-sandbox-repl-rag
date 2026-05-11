@@ -1,70 +1,54 @@
-# Agentic RAG Process Workflow
+# Agentic RAG Process Workflow (GKE & Gemini 3.1)
 
-This diagram illustrates the multi-model, multi-process lifecycle of a single Agentic RAG request.
+This diagram illustrates the multi-model, multi-process lifecycle of a single Agentic RAG request using GKE Sandboxes.
 
 ```mermaid
 graph TD
     %% Roles and Definitions
     subgraph GoHost [Go Host]
-        A[Initialize Orchestrator]
+        A[Initialize Orchestrator - 3.1 Flash]
         E[Proxy IPC Request]
-        G[Final Synthesis Step]
+        G[Final Synthesis - 3.1 Pro]
     end
 
-    subgraph Orchestrator [Orchestrator Agent - Flash]
-        B[Generate Python Script]
+    subgraph GKESandbox [GKE Sandbox - gVisor]
+        subgraph PythonExecution [Python Worker]
+            C[Triage: Regex/Keywords]
+            D[Sub-Agent Triage - 3.1 Flash-Lite]
+            F[Embed & Cosine Similarity]
+            I[Distilled Insight Manifest]
+        end
     end
 
-    subgraph PythonExecution [Python Execution Environment]
-        C[Chunk Dataset]
-        D[Calculate Cosine Similarity]
-        F[Dynamic Relevance Filter]
-        I[Vertex AI SDK Direct Call]
-    end
-
-    subgraph VertexSandbox [Vertex AI Agent Engine Sandbox]
-        J[Secure Isolated Environment]
+    subgraph GCP_APIs [Google Cloud APIs]
+        V[Vertex AI Gemini API]
+        M[Vertex AI Embeddings API]
     end
 
     %% Flow
-    A -->|System Instructions| B
-    B -->|execute_python_script| C
-    
-    %% Local Path
-    C -.->|"IPC (LocalRunner)"| E
-    E -.->|Vertex AI API| E
-    E -.->|"Vector Result"| D
-
-    %% Sandbox Path
-    C -.->|"Direct SDK (SandboxRunner)"| I
-    I -.->|Vertex AI API| I
-    I -.->|"Vector Result"| D
-    
-    C --- J
-    D --- J
-    
+    A -->|Tiered Discovery| C
+    C --> D
+    D -->|Vertex AI Call| V
     D --> F
-    F -->|"IPC: {'type': 'done'}"| G
-    G -.->|Vertex AI: gemini-1.5-pro| G
+    F -->|Embedding Call| M
+    F --> I
+    I -->|"IPC: {'type': 'done'}"| G
+    G -->|Final Synthesis| V
     G --> H[Final Summary Output]
 
     %% Styling
     style A fill:#f9f,stroke:#333,stroke-width:2px
-    style B fill:#bbf,stroke:#333,stroke-width:2px
-    style C fill:#bfb,stroke:#333,stroke-width:2px
     style G fill:#fbb,stroke:#333,stroke-width:2px
-    style J fill:#eee,stroke:#333,stroke-dasharray: 5 5
+    style GKESandbox fill:#eee,stroke:#333,stroke-dasharray: 5 5
+    style PythonExecution fill:#fff,stroke:#333
 ```
 
 ## Workflow Steps
 
-1.  **Orchestration**: Go initializes Gemini Flash with a set of "cost-optimizing" instructions.
-2.  **Code Generation**: Flash generates a specialized Python script for the specific query.
-3.  **Execution Environment**:
-    - **LocalRunner**: Executes Python via `os/exec`. Communicates with Go via a JSON IPC channel for embeddings and sub-agent calls.
-    - **SandboxRunner**: Executes Python in a secure Vertex AI Agent Engine Sandbox. Python can use the `vertexai` SDK directly for embeddings and sub-agents, or continue to use IPC if desired.
-4.  **Data Processing**: Python reads the context file (`context.txt` in sandbox or local) and chunks it.
-5.  **Embedding Generation**: Python obtains vectors for each chunk either via IPC (Go proxy) or directly via the Vertex AI SDK.
-6.  **Vector Search**: Similarity is calculated locally in Python to avoid high LLM context costs.
-7.  **Dynamic Filtering**: The script dynamically selects the most relevant content (e.g. > 0.75 similarity).
-8.  **Final Synthesis**: Only the "distilled" chunks are sent to Gemini Pro for the final high-quality summary.
+1.  **Orchestration**: Go initializes **Gemini 3.1 Flash** with a "Tiered Discovery" strategy.
+2.  **Sandbox Provisioning**: Go creates an ephemeral **GKE Job** using the `gvisor` runtime class for secure isolation.
+3.  **Triage Phase**: The Python script rapidly scans the mounted dataset using local regex and keyword filters to discard 90% of irrelevant data.
+4.  **Sub-Agent Evaluation**: **Gemini 3.1 Flash-Lite** sub-agents evaluate the remaining text blocks to determine their semantic value.
+5.  **Vector Search**: Only high-value blocks are sent to the **Vertex AI Embeddings API**. Similarity is calculated locally within the sandbox.
+6.  **Insight Manifest**: The script compiles a refined "Insight Manifest" of the most relevant distilled data.
+7.  **Final Synthesis**: The manifest is returned to Go, which invokes **Gemini 3.1 Pro** to produce the final polished executive summary.

@@ -31,8 +31,8 @@ func main() {
 	}
 	defer client.Close()
 
-	// Create a temporary file for the massive context data
-	contextContent := data.GenerateMassiveContext()
+	// Create a temporary file for the massive context data (Simulated SEC Filing)
+	contextContent := data.GenerateSECContext()
 	contextFilePath, cleanup, err := data.CreateContextFile(contextContent)
 	if err != nil {
 		slog.Error("Failed to create context file", "error", err)
@@ -40,10 +40,19 @@ func main() {
 	}
 	defer cleanup()
 
-	// Initialize the Python script runner (Vertex AI Agent Engine Sandbox)
-	runner, err := python.NewSandboxRunner(ctx, projectID, location)
+	// Initialize the Python script runner (GKE Sandbox / gVisor)
+	namespace := os.Getenv("K8S_NAMESPACE")
+	if namespace == "" {
+		namespace = "default"
+	}
+	image := os.Getenv("WORKER_IMAGE")
+	if image == "" {
+		image = "gcr.io/your-project/python-worker:latest" // TODO: Update with real image
+	}
+
+	runner, err := python.NewGKERunner(ctx, namespace, image)
 	if err != nil {
-		slog.Error("Failed to initialize Sandbox runner", "error", err)
+		slog.Error("Failed to initialize GKE runner", "error", err)
 		os.Exit(1)
 	}
 

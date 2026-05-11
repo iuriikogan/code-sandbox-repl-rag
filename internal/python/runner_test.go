@@ -72,6 +72,38 @@ sys.stdout.flush()
 	}
 }
 
+func TestExecuteScript_WithHelper(t *testing.T) {
+	runner := NewRunner()
+	handler := &MockHandler{}
+	ctx := context.Background()
+
+	// Use the rag helper instead of manual IPC
+	script := `
+res = rag.run_sub_agent("test-helper", "data-helper")
+vec = rag.get_embedding("data-helper")
+rag.finish(res + str(vec))
+`
+
+	out, err := runner.ExecuteScript(ctx, script, "dummy.txt", handler)
+	if err != nil {
+		t.Fatalf("ExecuteScript failed: %v", err)
+	}
+
+	if !handler.CalledHandleCall {
+		t.Errorf("Expected HandleCall to be invoked via helper")
+	}
+	if !handler.CalledHandleEmbed {
+		t.Errorf("Expected HandleEmbed to be invoked via helper")
+	}
+
+	if !strings.Contains(out, "mock result") {
+		t.Errorf("Expected output to contain 'mock result', got: %q", out)
+	}
+	if !strings.Contains(out, "[1, 2]") {
+		t.Errorf("Expected output to contain '[1, 2]', got: %q", out)
+	}
+}
+
 func TestExecuteScript_NoDone(t *testing.T) {
 	runner := NewRunner()
 	handler := &MockHandler{}

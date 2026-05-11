@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"google.golang.org/genai"
-	"github.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
-	"github.com/iuriikogan/code-sandbox-repl-rag/internal/python"
+	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
+	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/python"
 )
 
 // Orchestrator manages the main RAG agent loop.
@@ -27,56 +27,28 @@ func New(client *ai.Client, runner python.Runner) *Orchestrator {
 
 // Start begins the orchestration process.
 func (o *Orchestrator) Start(ctx context.Context, contextFileName string) error {
-	// Detect if we're using the Cloud Sandbox to provide specific instructions
-	isSandbox := false
-	if _, ok := o.runner.(*python.SandboxRunner); ok {
-		isSandbox = true
-	}
-
-	systemInstruction := `You are an elite, cost-optimizing Agentic Router. 
+	systemInstruction := `You are an elite, cost-optimizing Agentic Router using the Gemini 3.1 family.
 There is a massive, UNSTRUCTURED dataset saved at 'context.txt'.
-Do NOT ask me for the data. Read it from the file 'context.txt'.
 
-Your goal is to extract a comprehensive summary of all FINANCE related events.
+Your goal is to extract a comprehensive summary of all FINANCE related events using a TIERED DISCOVERY approach.
 
-Instead of text-based Map-Reduce, you must use Semantic Search (RAG) to find relevant chunks extremely cheaply:
-1. Write a Python script to read the file 'context.txt'.
-2. Chunk the unstructured data into logical pieces (e.g., line-by-line).`
+### Tiered Discovery Workflow:
+1. **Triage (Python)**: Rapidly scan 'context.txt' using regex or keywords to identify relevant sections.
+2. **Sub-Agent Triage (Flash-Lite)**: Use rag.run_sub_agent() to have Gemini 3.1 Flash-Lite quickly evaluate if a text block is worth embedding.
+3. **Semantic Search (Flash)**: Use rag.get_embedding() ONLY on the high-value blocks found in Triage.
+4. **Deep Analysis**: Perform final filtering and clustering in Python.
+5. **Synthesis (Pro)**: Return the distilled manifest for final processing.
 
-	if isSandbox {
-		systemInstruction += `
-3. Use the 'google.cloud.aiplatform' SDK to get embeddings for your chunks or to dispatch sub-agents.
-   Example (Embeddings):
-   from vertexai.language_models import TextEmbeddingModel
-   model = TextEmbeddingModel.from_pretrained("text-embedding-004")
-   embeddings = model.get_embeddings(["finance revenue", "cost metrics"])
-
-   Example (Sub-agents):
-   from vertexai.generative_models import GenerativeModel
-   worker = GenerativeModel("gemini-1.5-flash")
-   response = worker.generate_content("Summary instruction...")
-   print(response.text)
-
-4. Calculate Cosine Similarity locally in Python between the query vector and each chunk's vector.
-5. Dynamically determine the number of relevant chunks.
-6. Return those compiled high-value chunks by printing a JSON object: {"type": "done", "output": "<compiled_top_chunks>"}
+### RAG Helper API:
+- rag.get_embedding(text: str) -> list[float]: Returns the embedding vector for the given text.
+- rag.run_sub_agent(instruction: str, chunk: str) -> str: Dispatches a task to a specialized Gemini 3.1 Flash-Lite sub-agent.
+- rag.cosine_similarity(v1: list[float], v2: list[float]) -> float: Calculates similarity between vectors.
+- rag.finish(output: str): Returns the final compiled chunks/results and terminates.
+- rag.get_context_path() -> str: Returns the path to the 'context.txt' file.
 `
-	} else {
-		systemInstruction += `
-3. Embed your target query: Request a vector for a query like "finance revenue cost".
-   - Print: {"type": "embed", "chunk": "finance revenue cost metrics"}
-   - Flush stdout: sys.stdout.flush()
-   - Read stdin: json.loads(sys.stdin.readline())["vector"]
-4. Iterate through your chunks and get their vectors using the exact same {"type": "embed"} IPC call.
-5. Calculate Cosine Similarity locally in Python between the query vector and each chunk's vector.
-6. Dynamically determine the number of relevant chunks.
-7. Return those compiled high-value chunks back to me (the Orchestrator) by printing: {"type": "done", "output": "<compiled_top_chunks>"}
-   - Flush stdout immediately: sys.stdout.flush()
-`
-	}
 
 	systemInstruction += `
-Once the Python tool returns the highly relevant chunks, YOU (the Orchestrator) will read them, reason over them, and output the final, polished summary.`
+Once the Python tool returns the results, YOU (the Orchestrator) will read them, reason over them, and output the final, polished summary.`
 
 	config := &genai.GenerateContentConfig{
 		Temperature: genai.Ptr(float32(0.2)),
