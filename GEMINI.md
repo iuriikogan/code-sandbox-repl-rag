@@ -34,7 +34,7 @@
 
 ## Objective 4: Production-Ready Vertex AI Integrations
 *   **Key Result 4.1:** Exclusively use official `google.golang.org/genai` and `cloud.google.com/go/aiplatform` SDKs.
-*   **Key Result 4.2:** **Mandate**: Only use Gemini 2.5 models and above for all LLM tasks.
+*   **Key Result 4.2:** **Absolute Mandate**: Strictly use Gemini 3.1 models (Pro, Flash, Flash-Lite) for all LLM tasks. No exceptions.
 *   **Key Result 4.3:** Use Application Default Credentials (ADC).
 *   **Key Result 4.3:** Primary region is `us-central1` (required for Agent Engine Code Execution).
 

@@ -41,19 +41,29 @@ func main() {
 	defer cleanup()
 
 	// Initialize the Python script runner (GKE Sandbox / gVisor)
-	namespace := os.Getenv("K8S_NAMESPACE")
-	if namespace == "" {
-		namespace = "default"
-	}
-	image := os.Getenv("WORKER_IMAGE")
-	if image == "" {
-		image = "gcr.io/your-project/python-worker:latest" // TODO: Update with real image
-	}
+	var runner python.Runner
+	mode := os.Getenv("SANDBOX_MODE")
+	slog.Info("Runner Configuration", "mode", mode)
 
-	runner, err := python.NewGKERunner(ctx, namespace, image)
-	if err != nil {
-		slog.Error("Failed to initialize GKE runner", "error", err)
-		os.Exit(1)
+	if mode == "gke" {
+		namespace := os.Getenv("K8S_NAMESPACE")
+		if namespace == "" {
+			namespace = "default"
+		}
+		image := os.Getenv("WORKER_IMAGE")
+		if image == "" {
+			image = "gcr.io/your-project/python-worker:latest"
+		}
+
+		gkeRunner, err := python.NewGKERunner(ctx, namespace, image)
+		if err != nil {
+			slog.Error("Failed to initialize GKE runner", "error", err)
+			os.Exit(1)
+		}
+		runner = gkeRunner
+	} else {
+		slog.Info("Using Local Python Runner (Simulation Mode)")
+		runner = python.NewRunner()
 	}
 
 	// Start the orchestration loop

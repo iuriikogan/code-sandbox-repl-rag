@@ -1,4 +1,4 @@
-.PHONY: all build run test clean docker-build docker-up docker-down build-worker
+.PHONY: all build run test bench clean docker-build docker-up docker-down build-worker
 
 APP_NAME = code-sandbox
 WORKER_IMAGE = python-worker
@@ -21,6 +21,10 @@ run:
 test:
 	@echo "==> Running tests..."
 	go test -count=1 ./...
+
+bench:
+	@echo "==> Running benchmarks..."
+	go test -v -bench=. ./internal/orchestrator
 
 clean:
 	@echo "==> Cleaning up..."
