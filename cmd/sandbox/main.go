@@ -5,14 +5,19 @@ import (
 	"log/slog"
 	"os"
 
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/data"
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/orchestrator"
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/python"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/data"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/orchestrator"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/python"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/ui"
 )
 
 func main() {
 	ctx := context.Background()
+
+	// Initialize slog
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	slog.SetDefault(logger)
 
 	projectID := os.Getenv("GOOGLE_CLOUD_PROJECT")
 	if projectID == "" {
@@ -20,10 +25,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Use us-central1 as it is the only region supporting Code Execution currently
-	const location = "us-central1"
+	// Use us-central1 as it is the only region supporting Code Execution currently, but allow override
+	location := os.Getenv("GOOGLE_CLOUD_LOCATION")
+	if location == "" {
+		location = "us-central1"
+	}
 
 	// Initialize the Vertex AI client wrapper
+	slog.Info("Initializing GenAI client...", "projectID", projectID, "location", location)
 	client, err := ai.NewClient(ctx, projectID, location)
 	if err != nil {
 		slog.Error("Failed to initialize GenAI client", "error", err)
@@ -31,15 +40,35 @@ func main() {
 	}
 	defer client.Close()
 
+<<<<<<< HEAD
+	// Create a temporary file for the massive context data
+	spinner := ui.NewSpinner("Generating 45MB ultra-massive context dataset...")
+	spinner.Start()
+	contextContent := data.GenerateUltraMassiveContext(1200000)
+=======
 	// Create a temporary file for the massive context data (Simulated SEC Filing)
 	contextContent := data.GenerateSECContext()
+>>>>>>> main
 	contextFilePath, cleanup, err := data.CreateContextFile(contextContent)
 	if err != nil {
+		spinner.Stop("")
 		slog.Error("Failed to create context file", "error", err)
 		os.Exit(1)
 	}
+	spinner.Stop("✓ Dataset generated.")
 	defer cleanup()
 
+<<<<<<< HEAD
+	// Initialize the Python script runner locally with IPC
+	slog.Info("Initializing Local IPC runner...")
+	runner := python.NewRunner()
+	// Start the tiered routing process
+	slog.Info("Starting Tiered Routing...")
+	router := orchestrator.NewRouter(client, runner)
+	prompt := `Begin your task. Write a Python script to search 'context.txt' and extract the answers for TWO complex scenarios:
+1. Medical: Trace the genetic link between Patient A, B, and C, and explain the acute ER admission of Patient C.
+2. Engineering: Identify the root cause of the OOM kills in Service Omega, including the triggering service and proxy issue.`
+=======
 	// Initialize the Python script runner (GKE Sandbox / gVisor)
 	var runner python.Runner
 	mode := os.Getenv("SANDBOX_MODE")
@@ -65,11 +94,11 @@ func main() {
 		slog.Info("Using Local Python Runner (Simulation Mode)")
 		runner = python.NewRunner()
 	}
+>>>>>>> main
 
-	// Start the orchestration loop
-	orch := orchestrator.New(client, runner)
-	if err := orch.Start(ctx, contextFilePath); err != nil {
-		slog.Error("Orchestrator finished with error", "error", err)
+	if _, err := router.RouteAndExecute(ctx, contextFilePath, prompt); err != nil {
+		slog.Error("Router finished with error", "error", err)
 		os.Exit(1)
 	}
+	slog.Info("Router finished successfully.")
 }

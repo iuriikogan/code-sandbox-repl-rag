@@ -10,8 +10,8 @@ import (
 // unless GOOGLE_CLOUD_PROJECT is set and Application Default Credentials exist.
 // This test provides basic sanity checks for the constants and types.
 func TestClientConstants(t *testing.T) {
-	if OrchestratorModelName == "" {
-		t.Error("OrchestratorModelName should not be empty")
+	if FinalSynthesisModelName == "" {
+		t.Error("FinalSynthesisModelName should not be empty")
 	}
 	if WorkerModelName == "" {
 		t.Error("WorkerModelName should not be empty")
