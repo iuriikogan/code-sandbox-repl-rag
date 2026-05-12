@@ -40,10 +40,15 @@ func main() {
 	}
 	defer client.Close()
 
+<<<<<<< HEAD
 	// Create a temporary file for the massive context data
 	spinner := ui.NewSpinner("Generating 45MB ultra-massive context dataset...")
 	spinner.Start()
 	contextContent := data.GenerateUltraMassiveContext(1200000)
+=======
+	// Create a temporary file for the massive context data (Simulated SEC Filing)
+	contextContent := data.GenerateSECContext()
+>>>>>>> main
 	contextFilePath, cleanup, err := data.CreateContextFile(contextContent)
 	if err != nil {
 		spinner.Stop("")
@@ -53,6 +58,7 @@ func main() {
 	spinner.Stop("✓ Dataset generated.")
 	defer cleanup()
 
+<<<<<<< HEAD
 	// Initialize the Python script runner locally with IPC
 	slog.Info("Initializing Local IPC runner...")
 	runner := python.NewRunner()
@@ -62,6 +68,33 @@ func main() {
 	prompt := `Begin your task. Write a Python script to search 'context.txt' and extract the answers for TWO complex scenarios:
 1. Medical: Trace the genetic link between Patient A, B, and C, and explain the acute ER admission of Patient C.
 2. Engineering: Identify the root cause of the OOM kills in Service Omega, including the triggering service and proxy issue.`
+=======
+	// Initialize the Python script runner (GKE Sandbox / gVisor)
+	var runner python.Runner
+	mode := os.Getenv("SANDBOX_MODE")
+	slog.Info("Runner Configuration", "mode", mode)
+
+	if mode == "gke" {
+		namespace := os.Getenv("K8S_NAMESPACE")
+		if namespace == "" {
+			namespace = "default"
+		}
+		image := os.Getenv("WORKER_IMAGE")
+		if image == "" {
+			image = "gcr.io/your-project/python-worker:latest"
+		}
+
+		gkeRunner, err := python.NewGKERunner(ctx, namespace, image)
+		if err != nil {
+			slog.Error("Failed to initialize GKE runner", "error", err)
+			os.Exit(1)
+		}
+		runner = gkeRunner
+	} else {
+		slog.Info("Using Local Python Runner (Simulation Mode)")
+		runner = python.NewRunner()
+	}
+>>>>>>> main
 
 	if _, err := router.RouteAndExecute(ctx, contextFilePath, prompt); err != nil {
 		slog.Error("Router finished with error", "error", err)

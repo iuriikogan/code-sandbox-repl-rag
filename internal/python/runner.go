@@ -178,8 +178,12 @@ func (r *LocalRunner) ExecuteScript(ctx context.Context, code string, contextFil
 	}
 	defer os.Remove(tmpFile.Name())
 
+<<<<<<< HEAD
 	fullCode := pythonHelpers + "\n" + code
 	if _, err := tmpFile.WriteString(fullCode); err != nil {
+=======
+	if _, err := tmpFile.WriteString(HelperCode + "\n\n" + code); err != nil {
+>>>>>>> main
 		return "", err
 	}
 	tmpFile.Close()

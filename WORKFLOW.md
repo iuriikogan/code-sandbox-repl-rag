@@ -1,10 +1,15 @@
-# Agentic RAG Process Workflow
+# Agentic RAG Process Workflow (GKE & Gemini 3.1)
 
+<<<<<<< HEAD
 This diagram illustrates the multi-model, multi-process lifecycle of a single Agentic RAG request using a Local IPC Swarm architecture and Pure-Python analytical algorithms.
+=======
+This diagram illustrates the multi-model, multi-process lifecycle of a single Agentic RAG request using GKE Sandboxes.
+>>>>>>> main
 
 ```mermaid
 graph TD
     %% Roles and Definitions
+<<<<<<< HEAD
     subgraph GoHost [Go Host Process]
         A[Initialize Orchestrator]
         B[Generate 45MB+ Noise Context]
@@ -55,10 +60,49 @@ graph TD
     style PythonExecution fill:#eee,stroke:#333,stroke-dasharray: 5 5
     style G fill:#fbb,stroke:#333,stroke-width:2px
     style L fill:#bff,stroke:#333,stroke-width:2px
+=======
+    subgraph GoHost [Go Host]
+        A[Initialize Orchestrator - 3.1 Flash]
+        E[Proxy IPC Request]
+        G[Final Synthesis - 3.1 Pro]
+    end
+
+    subgraph GKESandbox [GKE Sandbox - gVisor]
+        subgraph PythonExecution [Python Worker]
+            C[Triage: Regex/Keywords]
+            D[Sub-Agent Triage - 3.1 Flash-Lite]
+            F[Embed & Cosine Similarity]
+            I[Distilled Insight Manifest]
+        end
+    end
+
+    subgraph GCP_APIs [Google Cloud APIs]
+        V[Vertex AI Gemini API]
+        M[Vertex AI Embeddings API]
+    end
+
+    %% Flow
+    A -->|Tiered Discovery| C
+    C --> D
+    D -->|Vertex AI Call| V
+    D --> F
+    F -->|Embedding Call| M
+    F --> I
+    I -->|"IPC: {'type': 'done'}"| G
+    G -->|Final Synthesis| V
+    G --> H[Final Summary Output]
+
+    %% Styling
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style G fill:#fbb,stroke:#333,stroke-width:2px
+    style GKESandbox fill:#eee,stroke:#333,stroke-dasharray: 5 5
+    style PythonExecution fill:#fff,stroke:#333
+>>>>>>> main
 ```
 
 ## Workflow Steps
 
+<<<<<<< HEAD
 1.  **Context Generation**: Go initializes an ultra-massive unstructured dataset filled with distractor noise and isolated "needle" strings.
 2.  **File Storage**: The dataset is written to a local temp file, bypassing standard HTTP payload limits.
 3.  **Orchestration**: Go initializes `gemini-3.1-flash-lite-preview` with a set of "cost-optimizing" analytical search instructions.
@@ -70,3 +114,12 @@ graph TD
 9.  **Swarm Map-Reduce (IPC)**: The highest-scoring chunks are dispatched to a concurrent swarm of `gemini-2.5-flash` Sub-Agents. These sub-agents run simultaneously to extract concise causal evidence and text clues from the chunks.
 10. **Recursive Vector Expansion**: Extracted clues are re-embedded. The query vector is mathematically updated (`update_vector_rocchio`), dragging the semantic center toward the new clues. The script recursively repeats steps 6-9, tracing multi-hop context across the dataset.
 11. **Final Synthesis**: Only the highly compressed "distilled" clues are returned to Go and sent to `gemini-2.5-pro` for a polished, highly accurate reasoning output.
+=======
+1.  **Orchestration**: Go initializes **Gemini 3.1 Flash** with a "Tiered Discovery" strategy.
+2.  **Sandbox Provisioning**: Go creates an ephemeral **GKE Job** using the `gvisor` runtime class for secure isolation.
+3.  **Triage Phase**: The Python script rapidly scans the mounted dataset using local regex and keyword filters to discard 90% of irrelevant data.
+4.  **Sub-Agent Evaluation**: **Gemini 3.1 Flash-Lite** sub-agents evaluate the remaining text blocks to determine their semantic value.
+5.  **Vector Search**: Only high-value blocks are sent to the **Vertex AI Embeddings API**. Similarity is calculated locally within the sandbox.
+6.  **Insight Manifest**: The script compiles a refined "Insight Manifest" of the most relevant distilled data.
+7.  **Final Synthesis**: The manifest is returned to Go, which invokes **Gemini 3.1 Pro** to produce the final polished executive summary.
+>>>>>>> main

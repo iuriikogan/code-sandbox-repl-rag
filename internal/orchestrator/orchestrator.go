@@ -27,6 +27,7 @@ func New(client *ai.Client, runner python.Runner) *Orchestrator {
 	}
 }
 
+<<<<<<< HEAD
 // Start begins the orchestration process with optimized Hybrid RRF RAG instructions.
 func (o *Orchestrator) Start(ctx context.Context, contextFileName string, initialPrompt string) (string, error) {
 	systemInstruction := "You are a Python scripting agent mapping data for an external Swarm.\n" +
@@ -98,6 +99,32 @@ func (o *Orchestrator) Start(ctx context.Context, contextFileName string, initia
 		"print(json.dumps({\"type\": \"done\", \"output\": '\\n'.join(evidence)}))\n" +
 		"sys.stdout.flush()\n" +
 		"```\n"
+=======
+// Start begins the orchestration process.
+func (o *Orchestrator) Start(ctx context.Context, contextFileName string) error {
+	systemInstruction := `You are an elite, cost-optimizing Agentic Router using the Gemini 3.1 family.
+There is a massive, UNSTRUCTURED dataset saved at 'context.txt'.
+
+Your goal is to extract a comprehensive summary of all FINANCE related events using a TIERED DISCOVERY approach.
+
+### Tiered Discovery Workflow:
+1. **Triage (Python)**: Rapidly scan 'context.txt' using regex or keywords to identify relevant sections.
+2. **Sub-Agent Triage (Flash-Lite)**: Use rag.run_sub_agent() to have Gemini 3.1 Flash-Lite quickly evaluate if a text block is worth embedding.
+3. **Semantic Search (Flash)**: Use rag.get_embedding() ONLY on the high-value blocks found in Triage.
+4. **Deep Analysis**: Perform final filtering and clustering in Python.
+5. **Synthesis (Pro)**: Return the distilled manifest for final processing.
+
+### RAG Helper API:
+- rag.get_embedding(text: str) -> list[float]: Returns the embedding vector for the given text.
+- rag.run_sub_agent(instruction: str, chunk: str) -> str: Dispatches a task to a specialized Gemini 3.1 Flash-Lite sub-agent.
+- rag.cosine_similarity(v1: list[float], v2: list[float]) -> float: Calculates similarity between vectors.
+- rag.finish(output: str): Returns the final compiled chunks/results and terminates.
+- rag.get_context_path() -> str: Returns the path to the 'context.txt' file.
+`
+
+	systemInstruction += `
+Once the Python tool returns the results, YOU (the Orchestrator) will read them, reason over them, and output the final, polished summary.`
+>>>>>>> main
 
 	config := &genai.GenerateContentConfig{
 		Temperature: genai.Ptr(float32(0.0)),
@@ -405,6 +432,10 @@ EXTRACTED CLUES:
 		}
 	}
 
+<<<<<<< HEAD
 	slog.Info("FINAL ORCHESTRATOR SYNTHESIS:\n\n" + synthesisText)
 	return synthesisText, nil
+=======
+	return fmt.Errorf("no response from final synthesis model")
+>>>>>>> main
 }
