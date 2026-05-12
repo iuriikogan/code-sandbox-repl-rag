@@ -76,6 +76,15 @@ def ipc_batch_embed(chunks):
         return json.loads(line).get("vectors", [])
     except Exception: return []
 
+def ipc_batch_call(instruction, chunks):
+    try:
+        print(json.dumps({"type": "batch_call", "instruction": instruction, "chunks": chunks}))
+        sys.stdout.flush()
+        line = sys.stdin.readline()
+        if not line: return []
+        return json.loads(line).get("results", [])
+    except Exception: return []
+
 def cosine_similarity(v1, v2):
     if not v1 or not v2: return 0.0
     dot_product = sum(a * b for a, b in zip(v1, v2))
@@ -122,6 +131,43 @@ def extract_keywords(text_list, exclude_words):
     words = set(re.findall(r'\b[A-Za-z0-9_-]{4,}\b', " ".join(text_list).lower()))
     exclude = set(w.lower() for w in exclude_words)
     return list(words - exclude)
+
+def get_std_dev_outliers(scores, multiplier=1.8):
+    if not scores: return []
+    mean = sum(scores) / len(scores)
+    variance = sum((x - mean) ** 2 for x in scores) / len(scores)
+    std_dev = variance ** 0.5
+    if std_dev == 0:
+        return [i for i, x in enumerate(scores) if x > mean]
+    threshold = mean + multiplier * std_dev
+    return [i for i, x in enumerate(scores) if x >= threshold]
+
+def update_vector_rocchio(q_vec, rel_vec, alpha=1.0, beta=0.75):
+    if not q_vec: return rel_vec
+    if not rel_vec: return q_vec
+    return [alpha * q + beta * r for q, r in zip(q_vec, rel_vec)]
+
+def rrf_fusion(bm25_scores, cosine_scores, candidates, k=60):
+    bm25_ranks = sorted(range(len(bm25_scores)), key=lambda i: bm25_scores[i], reverse=True)
+    cosine_ranks = sorted(range(len(cosine_scores)), key=lambda i: cosine_scores[i], reverse=True)
+    bm25_rank_map = {idx: rank for rank, idx in enumerate(bm25_ranks)}
+    cosine_rank_map = {idx: rank for rank, idx in enumerate(cosine_ranks)}
+    rrf_scores = []
+    for i in range(len(candidates)):
+        bm25_rank = bm25_rank_map[i]
+        cosine_rank = cosine_rank_map[i]
+        rrf_score = 1.0 / (k + bm25_rank) + 1.0 / (k + cosine_rank)
+        rrf_scores.append(rrf_score)
+    return rrf_scores
+
+def get_parent_context(all_chunks, child_indices, window=3):
+    parent_chunks = []
+    for idx in child_indices:
+        start = max(0, idx - window)
+        end = min(len(all_chunks), idx + window + 1)
+        parent_text = "".join(all_chunks[start:end])
+        parent_chunks.append(parent_text)
+    return parent_chunks
 `
 
 // ExecuteScript runs a Python script natively and handles IPC via stdout/stdin.

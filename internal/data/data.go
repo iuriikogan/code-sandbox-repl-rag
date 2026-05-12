@@ -23,6 +23,14 @@ func GenerateMassiveContext() string {
 	return GenerateContext(50)
 }
 
+func GenerateUltraMassiveContext(totalChunks int) string {
+	var sb strings.Builder
+	if err := StreamUltraMassiveContext(&sb, totalChunks); err != nil {
+		return ""
+	}
+	return sb.String()
+}
+
 // CreateContextFile writes the massive context to a temporary file.
 // It returns the file path, a cleanup function, and an error.
 func CreateContextFile(content string) (string, func(), error) {

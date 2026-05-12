@@ -56,16 +56,16 @@ func main() {
 	// Initialize the Python script runner locally with IPC
 	slog.Info("Initializing Local IPC runner...")
 	runner := python.NewRunner()
-	// Start the orchestration loop
-	slog.Info("Starting Orchestrator loop...")
-	orch := orchestrator.New(client, runner)
+	// Start the tiered routing process
+	slog.Info("Starting Tiered Routing...")
+	router := orchestrator.NewRouter(client, runner)
 	prompt := `Begin your task. Write a Python script to search 'context.txt' and extract the answers for TWO complex scenarios:
 1. Medical: Trace the genetic link between Patient A, B, and C, and explain the acute ER admission of Patient C.
 2. Engineering: Identify the root cause of the OOM kills in Service Omega, including the triggering service and proxy issue.`
 
-	if _, err := orch.Start(ctx, contextFilePath, prompt); err != nil {
-		slog.Error("Orchestrator finished with error", "error", err)
+	if _, err := router.RouteAndExecute(ctx, contextFilePath, prompt); err != nil {
+		slog.Error("Router finished with error", "error", err)
 		os.Exit(1)
 	}
-	slog.Info("Orchestrator finished successfully.")
+	slog.Info("Router finished successfully.")
 }

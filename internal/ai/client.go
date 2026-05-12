@@ -15,8 +15,12 @@ import (
 )
 
 const (
-	WorkerModelName         = "gemini-2.5-flash"
-	FinalSynthesisModelName = "gemini-2.5-pro"
+	Tier1ModelName          = "gemini-3.1-flash-lite-preview"
+	Tier2ModelName          = "gemini-3.1-flash-preview"
+	Tier3ModelName          = "gemini-3.1-pro-preview"
+
+	WorkerModelName         = Tier2ModelName
+	FinalSynthesisModelName = Tier3ModelName
 	EmbeddingModelName      = "text-embedding-004" // Default for Vertex
 )
 
@@ -32,7 +36,7 @@ func NewClient(ctx context.Context, projectID, location string) (*Client, error)
 	var client *genai.Client
 	var err error
 	embedModel := EmbeddingModelName
-	orchestratorModel := "gemini-2.5-flash"
+	orchestratorModel := Tier1ModelName
 
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey != "" {
@@ -40,8 +44,7 @@ func NewClient(ctx context.Context, projectID, location string) (*Client, error)
 		client, err = genai.NewClient(ctx, &genai.ClientConfig{
 			APIKey: apiKey,
 		})
-		embedModel = "text-embedding-004" // Use standard text-embedding-004 for AI Studio
-		orchestratorModel = "gemini-3.1-flash-lite-preview"
+		embedModel = "gemini-embedding-001" // Fallback to highly compatible gemini-embedding-001 for AI Studio
 	} else {
 		slog.Info("Using Vertex AI Backend")
 		client, err = genai.NewClient(ctx, &genai.ClientConfig{
