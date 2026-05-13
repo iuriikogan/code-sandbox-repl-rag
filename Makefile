@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 .PHONY: all build run test bench accuracy clean
-=======
-.PHONY: all build run test bench clean docker-build docker-up docker-down build-worker
->>>>>>> main
 
 APP_NAME = code-sandbox
 WORKER_IMAGE = python-worker
@@ -28,11 +24,7 @@ test:
 
 bench:
 	@echo "==> Running benchmarks..."
-<<<<<<< HEAD
 	go test -bench=. -benchmem ./...
-=======
-	go test -v -bench=. ./internal/orchestrator
->>>>>>> main
 
 clean:
 	@echo "==> Cleaning up..."
