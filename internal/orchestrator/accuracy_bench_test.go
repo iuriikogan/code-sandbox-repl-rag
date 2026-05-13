@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/data"
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/python"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/data"
+	"github.com/iuriikogan/code-sandbox-repl-rag/internal/python"
 )
 
 // TestAccuracy_RAG benchmarks the retrieval accuracy of the Agentic RAG approach.
@@ -64,7 +64,7 @@ func TestAccuracy_RAG(t *testing.T) {
 	// We'll need a way to stop the orchestrator or just let it finish.
 	// Since Start() is a blocking call that finishes when the final synthesis is done,
 	// we can just wait for it.
-	err = orch.Start(ctx, contextFilePath)
+	_, err = orch.Start(ctx, contextFilePath, "Find the finance event regarding AI-Solutions Inc acquisition.")
 	
 	w.Close()
 	os.Stdout = oldStdout

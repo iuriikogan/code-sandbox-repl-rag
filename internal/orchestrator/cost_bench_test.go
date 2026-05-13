@@ -4,12 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-<<<<<<< HEAD
 	"github.com/iuriikogan/code-sandbox-repl-rag/internal/ai"
 	"github.com/iuriikogan/code-sandbox-repl-rag/internal/data"
-=======
-	"githuob.com/iuriikogan/code-sandbox-repl-rag/internal/data"
->>>>>>> main
 )
 
 // approximateTokenCount estimates tokens by dividing character count by 4.
@@ -20,33 +16,20 @@ func approximateTokenCount(text string) float64 {
 
 // Hypothetical pricing rates (USD per 1 Million tokens) for Gemini 3.1 Series.
 const (
-<<<<<<< HEAD
-	PriceProInputPer1M   = 3.50  // gemini-2.5-pro approx input cost
-	PriceFlashInputPer1M = 0.075 // gemini-2.5-flash approx input cost
-	PriceEmbeddingPer1M  = 0.02  // text-embedding-004 approx cost
-=======
-	Price31ProInputPer1M      = 3.50  // gemini-3.1-pro
-	Price31FlashInputPer1M    = 0.075 // gemini-3.1-flash
+	Price31ProInputPer1M       = 3.50  // gemini-3.1-pro
+	Price31FlashInputPer1M     = 0.075 // gemini-3.1-flash
 	Price31FlashLiteInputPer1M = 0.01  // gemini-3.1-flash-lite (estimated)
-	PriceEmbeddingPer1M       = 0.02  // text-embedding-004
->>>>>>> main
+	PriceEmbeddingPer1M        = 0.02  // text-embedding-004
 )
 
 func getModelPrice(modelName string) float64 {
 	switch modelName {
-<<<<<<< HEAD
-	case "gemini-2.5-pro":
-		return PriceProInputPer1M
-	case "gemini-2.5-flash", "gemini-2.5-flash-lite":
-		return PriceFlashInputPer1M
-=======
-	case "gemini-3.1-pro":
+	case "gemini-2.5-pro", "gemini-3.1-pro", "gemini-3.1-pro-preview":
 		return Price31ProInputPer1M
-	case "gemini-3.1-flash":
+	case "gemini-2.5-flash", "gemini-3.1-flash", "gemini-3.1-flash-preview":
 		return Price31FlashInputPer1M
-	case "gemini-3.1-flash-lite":
+	case "gemini-2.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.1-flash-lite-preview":
 		return Price31FlashLiteInputPer1M
->>>>>>> main
 	default:
 		return Price31FlashInputPer1M
 	}
@@ -68,7 +51,6 @@ func BenchmarkCost_DirectLongContext_Pro(b *testing.B) {
 	}
 }
 
-<<<<<<< HEAD
 func BenchmarkCost_StandardRouting_Flash(b *testing.B) {
 	for _, size := range contextSizes {
 		b.Run(fmt.Sprintf("ContextSize_%d", size), func(b *testing.B) {
@@ -79,7 +61,7 @@ func BenchmarkCost_StandardRouting_Flash(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				tokens := approximateTokenCount(prompt)
-				cost := (tokens / 1000000.0) * PriceFlashInputPer1M
+				cost := (tokens / 1000000.0) * Price31FlashInputPer1M
 
 				b.ReportMetric(tokens, "tokens/op")
 				b.ReportMetric(cost, "USD/op")
@@ -89,13 +71,8 @@ func BenchmarkCost_StandardRouting_Flash(b *testing.B) {
 }
 
 func BenchmarkCost_RAGRouting(b *testing.B) {
-	orchestratorPrice := getModelPrice("gemini-2.5-flash")
-	synthesisPrice := getModelPrice(ai.FinalSynthesisModelName)
-=======
-func BenchmarkCost_NaiveRAG(b *testing.B) {
-	orchPrice := Price31FlashInputPer1M
-	synthPrice := Price31ProInputPer1M
->>>>>>> main
+	orchPrice := getModelPrice("gemini-2.5-flash")
+	synthPrice := getModelPrice(ai.FinalSynthesisModelName)
 
 	for _, size := range contextSizes {
 		b.Run(fmt.Sprintf("Size_%d", size), func(b *testing.B) {

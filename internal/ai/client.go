@@ -15,7 +15,6 @@ import (
 )
 
 const (
-<<<<<<< HEAD
 	Tier1ModelName          = "gemini-3.1-flash-lite-preview"
 	Tier2ModelName          = "gemini-3.1-flash-preview"
 	Tier3ModelName          = "gemini-3.1-pro-preview"
@@ -23,12 +22,6 @@ const (
 	WorkerModelName         = Tier2ModelName
 	FinalSynthesisModelName = Tier3ModelName
 	EmbeddingModelName      = "text-embedding-004" // Default for Vertex
-=======
-	OrchestratorModelName   = "gemini-3-flash-preview"
-	WorkerModelName         = "gemini-flash-lite-latest"
-	FinalSynthesisModelName = "gemini-3.1-pro-preview"
-	EmbeddingModelName      = "text-embedding-004"
->>>>>>> main
 )
 
 // Client wraps the standard GenAI client.
