@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log/slog"
 	"os"
 
@@ -13,6 +14,10 @@ import (
 )
 
 func main() {
+	datasetPath := flag.String("dataset", "", "Absolute or relative path to an external dataset/log file (if empty, generates synthetic 45MB context)")
+	customPrompt := flag.String("prompt", "", "Custom query instruction for the Orchestrator (if empty, uses default multi-scenario prompt)")
+	flag.Parse()
+
 	ctx := context.Background()
 
 	// Initialize slog
@@ -40,28 +45,48 @@ func main() {
 	}
 	defer client.Close()
 
-	// Create a temporary file for the massive context data
-	spinner := ui.NewSpinner("Generating 45MB ultra-massive context dataset...")
-	spinner.Start()
-	contextContent := data.GenerateUltraMassiveContext(1200000)
-	contextFilePath, cleanup, err := data.CreateContextFile(contextContent)
-	if err != nil {
-		spinner.Stop("")
-		slog.Error("Failed to create context file", "error", err)
-		os.Exit(1)
+	var contextFilePath string
+	var cleanup func()
+
+	if *datasetPath != "" {
+		if _, err := os.Stat(*datasetPath); err != nil {
+			slog.Error("Provided dataset file does not exist", "path", *datasetPath, "error", err)
+			os.Exit(1)
+		}
+		contextFilePath = *datasetPath
+		cleanup = func() {} // No cleanup needed for user-provided files
+		slog.Info("Using external dataset", "path", contextFilePath)
+	} else {
+		// Generate default synthetic dataset
+		spinner := ui.NewSpinner("Generating 45MB ultra-massive context dataset...")
+		spinner.Start()
+		contextContent := data.GenerateUltraMassiveContext(1200000)
+		contextFilePath, cleanup, err = data.CreateContextFile(contextContent)
+		if err != nil {
+			spinner.Stop("")
+			slog.Error("Failed to create context file", "error", err)
+			os.Exit(1)
+		}
+		spinner.Stop("✓ Dataset generated.")
 	}
-	spinner.Stop("✓ Dataset generated.")
 	defer cleanup()
 
 	// Initialize the Python script runner locally with IPC
 	slog.Info("Initializing Local IPC runner...")
 	runner := python.NewRunner()
+
 	// Start the tiered routing process
 	slog.Info("Starting Tiered Routing...")
 	router := orchestrator.NewRouter(client, runner)
+
 	prompt := `Begin your task. Write a Python script to search 'context.txt' and extract the answers for TWO complex scenarios:
 1. Medical: Trace the genetic link between Patient A, B, and C, and explain the acute ER admission of Patient C.
 2. Engineering: Identify the root cause of the OOM kills in Service Omega, including the triggering service and proxy issue.`
+
+	if *customPrompt != "" {
+		prompt = *customPrompt
+		slog.Info("Using custom query prompt", "prompt", prompt)
+	}
 
 	if _, err := router.RouteAndExecute(ctx, contextFilePath, prompt); err != nil {
 		slog.Error("Router finished with error", "error", err)

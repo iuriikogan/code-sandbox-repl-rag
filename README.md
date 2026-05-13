@@ -1,4 +1,4 @@
-# Code Sandbox REPL RAG (Gemini 3.1 & GKE)
+# Code Sandbox REPL RAG (Gemini 3.1)
 
 ## Project Overview
 
@@ -52,6 +52,33 @@ You must set the following environment variables before running the application:
 
 ## Setup & Running
 
-### Run the Simulation
-To run the Go orchestrator pipeline:
+### Command-Line Flags
+The application supports custom dataset ingestion and query overrides via CLI flags:
+
+| Flag | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `-dataset` | `string` | `""` | Path to external dataset/log file (if empty, generates synthetic 45MB context) |
+| `-prompt` | `string` | `""` | Custom query instruction for the Orchestrator (if empty, uses default multi-scenario prompt) |
+
+### Usage Examples
+
+#### 1. Run Default Simulation
+Runs the pipeline against the default 45MB synthetic engineering/medical dataset:
+```bash
+export GEMINI_API_KEY="your-key-here"
+go run cmd/sandbox/main.go
+```
+
+#### 2. Ingest External Dataset
+Analyze any external log file, document corpus, or JSONL export with a custom prompt:
+```bash
+go run cmd/sandbox/main.go -dataset=/var/log/nginx/access.log -prompt="Identify all SQL injection attempts."
+```
+
+#### 3. Run Synthetic Cascading Failure Evaluation
+Execute the Vertex AI synthetic cascading failure test harness:
+```bash
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+go test -v ./internal/orchestrator -run TestSyntheticCascadingFailureRAG
+```
 
