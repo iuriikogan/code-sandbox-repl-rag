@@ -1,4 +1,4 @@
-# Agentic RAG Process Workflow (GKE & Gemini 3.1)
+# Agentic RAG Process Workflow (Gemini 3.1)
 
 
 This diagram illustrates the multi-model, multi-process lifecycle of a single Agentic RAG request using a Local IPC Swarm architecture and Pure-Python analytical algorithms.
@@ -12,7 +12,7 @@ graph TD
         G[Final Synthesis - 3.1 Pro]
     end
 
-    subgraph GKESandbox [GKE Sandbox - gVisor]
+    subgraph SubprocessSandbox [Local Subprocess Sandbox]
         subgraph PythonExecution [Python Worker]
             C[Triage: Regex/Keywords]
             D[Sub-Agent Triage - 3.1 Flash-Lite]
@@ -40,7 +40,7 @@ graph TD
     %% Styling
     style A fill:#f9f,stroke:#333,stroke-width:2px
     style G fill:#fbb,stroke:#333,stroke-width:2px
-    style GKESandbox fill:#eee,stroke:#333,stroke-dasharray: 5 5
+    style SubprocessSandbox fill:#eee,stroke:#333,stroke-dasharray: 5 5
     style PythonExecution fill:#fff,stroke:#333
 ```
 

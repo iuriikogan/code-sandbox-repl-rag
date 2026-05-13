@@ -8,7 +8,7 @@ The Tiered Routing Architecture is designed to optimize the performance, cost, a
 
 We utilize three tiers of Gemini models to balance efficiency and reasoning depth:
 
-### Tier 1: Gemini 1.5 Flash-Lite
+### Tier 1: Gemini 3.1 Flash-Lite
 *   **Role:** Fast Triage & Simple Retrieval.
 *   **Characteristics:** Lowest latency and cost.
 *   **Use Cases:**
@@ -17,7 +17,7 @@ We utilize three tiers of Gemini models to balance efficiency and reasoning dept
     *   Metadata extraction from small chunks.
     *   Formatting and cleaning of retrieved results.
 
-### Tier 2: Gemini 1.5 Flash
+### Tier 2: Gemini 3.1 Flash
 *   **Role:** Intermediate Reasoning & Multi-Hop Retrieval.
 *   **Characteristics:** Balanced performance with significant reasoning capabilities.
 *   **Use Cases:**
@@ -25,7 +25,7 @@ We utilize three tiers of Gemini models to balance efficiency and reasoning dept
     *   Summarization of medium-sized context segments (up to 128k tokens).
     *   Domain-specific analysis (Engineering/Medical) that requires understanding of technical terminology.
 
-### Tier 3: Gemini 1.5 Pro
+### Tier 3: Gemini 3.1 Pro
 *   **Role:** Complex Reasoning & Ultra-Large Context Analysis.
 *   **Characteristics:** High-fidelity reasoning and support for 1M+ token context windows.
 *   **Use Cases:**
