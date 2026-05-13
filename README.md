@@ -69,14 +69,27 @@ export GEMINI_API_KEY="your-key-here"
 go run cmd/sandbox/main.go
 ```
 
-#### 2. Ingest External Dataset
-Analyze any external log file, document corpus, or JSONL export with a custom prompt:
+#### 2. Run Sample Static Cascading Failure Dataset
+Immediately analyze our bundled sample cascading failure dataset:
+```bash
+go run cmd/sandbox/main.go -dataset=testdata/cascading_failure.jsonl -prompt="Trace the root cause of the Redis memory eviction spike and connection pool exhaustion."
+```
+
+#### 3. Ingest External Log File
+Analyze any arbitrary enterprise log file, document corpus, or JSONL export:
 ```bash
 go run cmd/sandbox/main.go -dataset=/var/log/nginx/access.log -prompt="Identify all SQL injection attempts."
 ```
 
-#### 3. Run Synthetic Cascading Failure Evaluation
-Execute the Vertex AI synthetic cascading failure test harness:
+#### 4. Generate Custom Cascading Failure JSONL Dataset
+Use our standalone CLI generator to output custom-scaled cascading failure logs to disk via Vertex AI:
+```bash
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+go run cmd/generator/main.go -logs=250 -out=my_enterprise_failure.jsonl
+```
+
+#### 5. Run Automated Evaluation Harness
+Execute the automated Vertex AI synthetic cascading failure test suite:
 ```bash
 export GOOGLE_CLOUD_PROJECT="your-project-id"
 go test -v ./internal/orchestrator -run TestSyntheticCascadingFailureRAG
